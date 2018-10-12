@@ -1,8 +1,12 @@
+# important: do use utf-8 encoding
 account: 
+  # en: https://leetcode.com
+  # cn: https://leetcode-cn.com
   # en | cn
   domain: en
   # username | email
-  user: your_username
+  user: your_username_or_email
+  # your leetcode password
   password: your_password
 
 repo: 
