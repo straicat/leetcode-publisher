@@ -9,6 +9,7 @@ DOMAIN_EN = 'https://leetcode.com'
 DOMAIN_CN = 'https://leetcode-cn.com'
 
 
+# noinspection PyPep8Naming
 class GraphqlAPI:
     @staticmethod
     def getQuestionDetail(title_slug):
@@ -45,10 +46,11 @@ class User:
     def request(self, method, url, **kwargs):
         if not url.startswith('http'):
             url = self.domain + url
-        head = {'referer': url, 'x-csrftoken': self.csrftoken}
         if 'headers' in kwargs:
             head = kwargs['headers']
             del kwargs['headers']
+        else:
+            head = {'referer': url, 'x-csrftoken': self.csrftoken}
         return self.sess.request(method, url, headers=head, **kwargs)
 
     def login(self, user, password):
@@ -62,6 +64,9 @@ class User:
 
     def question(self, title_slug):
         return self.graphql(GraphqlAPI.getQuestionDetail(title_slug))['data']['question']
+
+    def likes(self, title_slug):
+        return self.graphql(GraphqlAPI.getLikesAndFavorites(title_slug))['data']['question']
 
     def submissions(self, page):
         url = self.domain + '/api/submissions/'
@@ -80,7 +85,7 @@ class User:
 
     def note(self, question_id):
         url = self.domain + '/problems/note/%s/' % question_id
-        return self.request('GET', url).json()
+        return self.request('GET', url).json().get('content')
 
 
 class UserEN(User):
