@@ -28,9 +28,7 @@ class User:
     def __init__(self, domain):
         self.__domain = domain
         self.sess = requests.Session()
-        adapter = HTTPAdapter(max_retries=5)
-        self.sess.mount('https://', adapter)
-        self.sess.mount('http://', adapter)
+        self.sess.mount('https://', HTTPAdapter(max_retries=5))
         self.sess.request = partial(self.sess.request, timeout=(3.05, 27))
 
     @property
@@ -51,7 +49,9 @@ class User:
             del kwargs['headers']
         else:
             head = {'referer': url, 'x-csrftoken': self.csrftoken}
-        return self.sess.request(method, url, headers=head, **kwargs)
+        r = self.sess.request(method, url, headers=head, **kwargs)
+        r.raise_for_status()
+        return r
 
     def login(self, user, password):
         data = {'login': user, 'password': password}
