@@ -26,7 +26,7 @@ $ cp config.example.yml config.yml
 $ vim config.yml
 ```
 
-4、使用
+4、尽情使用！
 
 ```Bash
 $ python src/app.py

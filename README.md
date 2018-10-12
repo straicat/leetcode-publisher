@@ -2,9 +2,9 @@ Enlish | [简体中文](README.CN.md)
 
 ## leetcode-publisher
 
-LeetCode solves the problem of automatic generation and release of warehouses.
+Automatically generate and publish LeetCode solution repository.
 
-Example: [My accepted leetcode solutions] (https://github.com/jlice/leetcode)
+Example: [My accepted leetcode solutions](https://github.com/jlice/leetcode)
 
 ### Instructions
 
@@ -14,7 +14,7 @@ Example: [My accepted leetcode solutions] (https://github.com/jlice/leetcode)
 $ git clone https://github.com/jlice/leetcode-publisher.git
 ```
 
-2. Installation dependencies (requires Python 3.5 or higher)
+2. Install dependencies (requires Python 3.5 or higher)
 
 ```Bash
 $ cd leetcode-publisher
@@ -38,7 +38,7 @@ $ python src/app.py
 
 This tool will automatically retrieve your data on LeetCode and cache it in the `_cache` folder so you don't need to retrieve data from LeetCode repeatedly.
 
-The problem repository is generated in the `repo` folder, which is deleted before each build. The contents of the `_source` folder will be copied to the `repo` folder when the repository is generated.
+The solution repository is generated in the `repo` folder, which is deleted before each build. The contents of the `_source` folder will be copied to the `repo` folder when the repository is generated.
 
 The template for the README and the solution is written using [Jinja2](http://jinja.pocoo.org/).
 
