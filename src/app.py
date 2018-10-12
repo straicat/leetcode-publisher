@@ -1,18 +1,52 @@
 import glob
 import json
+import logging
 import os
 import shutil
 import subprocess
 import sys
+import time
 from collections import defaultdict
+from datetime import datetime
 
 import yaml
 from jinja2 import Template
+from requests import HTTPError
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from leetcode import UserCN, UserEN
 
 PREFIX = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+
+
+class UserCNSP(UserCN):
+    def __init__(self):
+        super().__init__()
+
+    def request(self, method, url, **kwargs):
+        for _ in range(3):
+            try:
+                return super().request(method, url, **kwargs)
+            except HTTPError:
+                for t in range(60, 0, -1):  # Error 429 - Rate limit exceeded!
+                    print('\rWait for %d seconds...    ' % t, end='', flush=True)
+                    time.sleep(1)
+                print()
+
+
+class UserENSP(UserEN):
+    def __init__(self):
+        super().__init__()
+
+    def request(self, method, url, **kwargs):
+        for _ in range(3):
+            try:
+                return super().request(method, url, **kwargs)
+            except HTTPError:
+                for t in range(60, 0, -1):  # Error 429 - Rate limit exceeded!
+                    print('\rWait for %d seconds...    ' % t, end='', flush=True)
+                    time.sleep(1)
+                print()
 
 
 class RepoGen:
@@ -27,8 +61,9 @@ class RepoGen:
         self.likes = {}
 
     def main(self):
+        self.logger()
         if self.login():
-            print('登录成功！')
+            print('> Login successful!')
             self.prepare_submissions()
             self.prepare_solutions()
             self.prepare_questions()
@@ -40,14 +75,28 @@ class RepoGen:
             self.copy_source()
             self.deploy()
         else:
-            print('登录失败！')
+            print('> Login failed!')
+
+    @staticmethod
+    def logger():
+        log_file = os.path.join(PREFIX, '_cache', 'log', '%s.log' % datetime.now().strftime('%Y-%m-%d'))
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+        root = logging.getLogger()
+        root.setLevel(logging.DEBUG)
+        fh = logging.FileHandler(log_file, encoding='utf-8')
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(logging.Formatter('%(asctime)s %(levelname)-7s | %(message)s'))
+        root.addHandler(fh)
+        sh = logging.StreamHandler()
+        sh.setLevel(logging.WARNING)
+        root.addHandler(sh)
 
     def login(self):
         domain = self.conf['account']['domain']
         if domain == 'cn':
-            self.user = UserCN()
+            self.user = UserCNSP()
         elif domain == 'en':
-            self.user = UserEN()
+            self.user = UserENSP()
         return self.user.login(self.conf['account']['user'], self.conf['account']['password'])
 
     def __submissions(self):
@@ -59,11 +108,10 @@ class RepoGen:
         has_next = True
         stop_flag = False
         page = 0
-        print('> 获取提交记录', end='', flush=True)
         while has_next and not stop_flag:
             page += 1
+            print('\r> Get submission record of page %d      ' % page, end='', flush=True)
             j = self.user.submissions(page)
-            print('.', end='', flush=True)
             has_next = j['has_next']
             for sd in j['submissions_dump']:
                 if sd['id'] in stored_submission_ids:
@@ -71,7 +119,7 @@ class RepoGen:
                     break
                 self.all_submissions.insert(0, sd)
                 yield sd
-        print()
+        print('\r> Get submission record completed!            ')
 
         with open(sub_file, 'w', encoding='utf-8') as f:
             json.dump(self.all_submissions, f)
@@ -90,11 +138,11 @@ class RepoGen:
         if os.path.exists(solu_file):
             with open(solu_file, 'r', encoding='utf-8') as f:
                 self.solutions = json.load(f)
-        print('> 获取解答', end='', flush=True)
-        for sublist in self.ac_submissions.values():
+        print('> Get solutions')
+        for title, sublist in self.ac_submissions.items():
+            print(title)
             for sub in sublist[::-1]:
                 solu = self.user.solution(sub['id'])
-                print('.', end='', flush=True)
                 slug = solu['title_slug']
                 if slug not in self.solutions:
                     self.solutions[slug] = [solu]
@@ -103,7 +151,6 @@ class RepoGen:
                         if self.solutions[slug][i]['language'] == solu['language']:
                             self.solutions[slug].pop(i)
                     self.solutions[slug].insert(0, solu)
-        print()
         with open(solu_file, 'w', encoding='utf-8') as f:
             json.dump(self.solutions, f)
 
@@ -112,13 +159,12 @@ class RepoGen:
         if os.path.exists(ques_file):
             with open(ques_file, 'r', encoding='utf-8') as f:
                 self.questions = json.load(f)
-        cn_user = UserCN()
-        print('> 获取题目', end='', flush=True)
+        cn_user = UserCNSP()  # Chinese version comes with translation
+        print('> Get questions')
         for slug in self.solutions:
             if slug not in self.questions:
+                print(slug)
                 self.questions[slug] = cn_user.question(slug)
-                print('.', end='', flush=True)
-        print()
         with open(ques_file, 'w', encoding='utf-8') as f:
             json.dump(self.questions, f)
 
@@ -127,12 +173,11 @@ class RepoGen:
         if os.path.exists(note_file):
             with open(note_file, 'r', encoding='utf-8') as f:
                 self.notes = json.load(f)
-        print('> 获取笔记', end='', flush=True)
+        print('> Get notes')
         for slug in self.solutions:
             if slug not in self.notes:
+                print(slug)
                 self.notes[slug] = self.user.note(self.questions[slug]['questionId'])
-                print('.', end='', flush=True)
-        print()
         with open(note_file, 'w', encoding='utf-8') as f:
             json.dump(self.notes, f)
 
@@ -141,34 +186,36 @@ class RepoGen:
         if os.path.exists(like_file):
             with open(like_file, 'r', encoding='utf-8') as f:
                 self.likes = json.load(f)
-        print('> 获取顶踩', end='', flush=True)
+        print('> Get likes')
         for slug in self.solutions:
             if slug not in self.likes:
+                print(slug)
                 self.likes[slug] = self.user.likes(slug)
-                print('.', end='', flush=True)
-        print()
-        print(self.likes)
         with open(like_file, 'w', encoding='utf-8') as f:
             json.dump(self.likes, f)
 
     @staticmethod
     def prepare_render():
+        # delete folder "repo"
         shutil.rmtree(os.path.join(PREFIX, 'repo'), ignore_errors=True)
         os.makedirs(os.path.join(PREFIX, 'repo'))
         os.makedirs(os.path.join(PREFIX, 'repo', 'problems'))
 
     def render_readme(self):
-        print('> 渲染README.md')
+        print('> Render README.md')
+        # This determines how to sort the problems
         ques_sort = sorted(
             [(ques['questionFrontendId'], ques['questionTitleSlug']) for ques in self.questions.values()],
             key=lambda x: -1 * int(x[0]))
+        # You can customize the template
         tmpl = Template(open(os.path.join(PREFIX, 'templ', 'README.md.txt'), encoding='utf-8').read())
         readme = tmpl.render(questions=[self.questions[slug] for _, slug in ques_sort], likes=self.likes)
         with open(os.path.join(PREFIX, 'repo', 'README.md'), 'w', encoding='utf-8') as f:
             f.write(readme)
 
     def render_problems(self):
-        print('> 渲染题解')
+        print('> Render problems')
+        # You can customize the template
         tmpl = Template(
             open(os.path.join(PREFIX, 'templ', 'question.md.txt'), encoding='utf-8').read())
         for slug in self.solutions:
@@ -183,7 +230,7 @@ class RepoGen:
 
     @staticmethod
     def copy_source():
-        print('> 复制资源')
+        print('> Copy resources')
         repo = os.path.join(PREFIX, 'repo')
         for src in glob.glob(os.path.join(PREFIX, '_source', '*')):
             print(os.path.relpath(src, PREFIX))
@@ -198,7 +245,7 @@ class RepoGen:
 
     def deploy(self):
         if self.conf.get('repo'):
-            print('> 发布至Git仓库')
+            print('> Deploy to git repository')
             repo = os.path.join(PREFIX, 'repo')
             cmds = []
             os.chdir(repo)
