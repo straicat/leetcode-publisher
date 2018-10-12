@@ -1,4 +1,8 @@
-## LeetCode题解
+## LeetCode Solution
+
+My accepted leetcode solutions. This repository is automatically generated and deployed by [**leetcode-publisher**](https://github.com/jlice/leetcode-publisher).
+
+My LeetCode homepage : [jlice - Profile - LeetCode](https://leetcode.com/jlice/)
 
 | # | Title | Difficulty | Like |
 |---| ----- | ---------- | ---- |

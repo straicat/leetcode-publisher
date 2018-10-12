@@ -1,25 +1,25 @@
 ## {{ question.questionFrontendId }}. {{ question.questionTitle }} | {{ question.translatedTitle }}
 
-### 题目描述
+### Question description
 
 {{ question.translatedContent }}
 
-### 题目链接
+### Question link
 
 ▶ [LeetCode](https://leetcode.com/problems/{{ question.questionTitleSlug }}/description/)
 
 ▶ [LeetCode中国](https://leetcode-cn.com/problems/{{ question.questionTitleSlug }}/description/)
 
 {% if note -%}
-### 笔记
+### Note
 
 {{ note | replace("\n", "\n\n") }}
 {% endif %}
 
-### 题目解答
+### Solution
 
 {% for solution in solutions -%}
-编程语言：**{{ solution.language }}** | 运行时间：{{ solution.runtime }}
+Language：**{{ solution.language }}** | Runtime：{{ solution.runtime }}
 
 ```{{ solution.language }}
 {{ solution.code | replace("\t", "    ") }}
