@@ -40,7 +40,9 @@ This tool will automatically retrieve your data on LeetCode and cache it in the 
 
 The solution repository is generated in the `repo` folder, which is deleted before each build. The contents of the `_source` folder will be copied to the `repo` folder when the repository is generated.
 
-The template for the README and the solution is written using [Jinja2](http://jinja.pocoo.org/).
+The templates for the README and the solution are written in [Jinja2](http://jinja.pocoo.org/) and located in the `templ` folder.
+
+Only get and display accepted codes. If codes in the same programming language are accepted multiple times, only the latest ones are displayed. If multiple programming languages are used to answer questions, answers in multiple programming languages will be presented.
 
 ### Agreement
 
