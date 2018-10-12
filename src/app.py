@@ -223,7 +223,7 @@ class RepoGen:
             _note = self.notes[slug]
             _solutions = self.solutions[slug]
             question = tmpl.render(question=_question, note=_note, solutions=_solutions)
-            _filename = '%s_%s.md' % (_question['questionFrontendId'], slug)
+            _filename = '%s-%s.md' % (_question['questionFrontendId'], slug)
             print(_filename)
             with open(os.path.join(PREFIX, 'repo', 'problems', _filename), 'w', encoding='utf-8') as f:
                 f.write(question)

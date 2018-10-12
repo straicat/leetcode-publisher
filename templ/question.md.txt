@@ -19,7 +19,7 @@
 ### Solution
 
 {% for solution in solutions -%}
-Language：**{{ solution.language }}** | Runtime：{{ solution.runtime }}
+Language: **{{ solution.language }}** | Runtime: {{ solution.runtime }}
 
 ```{{ solution.language }}
 {{ solution.code | replace("\t", "    ") }}
