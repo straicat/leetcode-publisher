@@ -1,0 +1,10 @@
+account: 
+  # en | cn
+  domain: en
+  # username | email
+  user: your_username
+  password: your_password
+
+repo: 
+  # your git repo remote url, like this:
+  - git@github.com:username/leetcode.git
