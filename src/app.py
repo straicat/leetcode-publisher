@@ -54,7 +54,8 @@ class RepoGen:
         self.conf = conf
         self.user = None
         self.all_submissions = []
-        self.ac_submissions = defaultdict(list)
+        self.new_ac_submissions = defaultdict(list)
+        self.new_ac_title_slugs = set()
         self.solutions = {}
         self.questions = {}
         self.notes = {}
@@ -128,10 +129,10 @@ class RepoGen:
         for sd in self.__submissions():
             if sd['status_display'] != 'Accepted':
                 continue
-            if sd['title'] in self.ac_submissions:
-                if sd['lang'] in [sub['lang'] for sub in self.ac_submissions[sd['title']]]:
+            if sd['title'] in self.new_ac_submissions:
+                if sd['lang'] in [sub['lang'] for sub in self.new_ac_submissions[sd['title']]]:
                     continue
-            self.ac_submissions[sd['title']].append(sd)
+            self.new_ac_submissions[sd['title']].append(sd)
 
     def prepare_solutions(self):
         solu_file = os.path.join(PREFIX, '_cache', 'solutions.json')
@@ -139,11 +140,12 @@ class RepoGen:
             with open(solu_file, 'r', encoding='utf-8') as f:
                 self.solutions = json.load(f)
         print('> Get solutions')
-        for title, sublist in self.ac_submissions.items():
+        for title, sublist in self.new_ac_submissions.items():
             print(title)
             for sub in sublist[::-1]:
                 solu = self.user.solution(sub['id'])
                 slug = solu['title_slug']
+                self.new_ac_title_slugs.add(slug)
                 if slug not in self.solutions:
                     self.solutions[slug] = [solu]
                 else:
@@ -164,7 +166,8 @@ class RepoGen:
         for slug in self.solutions:
             if slug not in self.questions:
                 print(slug)
-                self.questions[slug] = cn_user.question(slug)
+                # if there is no the question in LeetCode China, try to search it in LeetCode main site instead
+                self.questions[slug] = cn_user.question(slug) or UserEN().question(slug)
         with open(ques_file, 'w', encoding='utf-8') as f:
             json.dump(self.questions, f)
 
@@ -175,7 +178,7 @@ class RepoGen:
                 self.notes = json.load(f)
         print('> Get notes')
         for slug in self.solutions:
-            if slug not in self.notes:
+            if slug not in self.notes or slug in self.new_ac_title_slugs:
                 print(slug)
                 self.notes[slug] = self.user.note(self.questions[slug]['questionId'])
         with open(note_file, 'w', encoding='utf-8') as f:
@@ -188,7 +191,7 @@ class RepoGen:
                 self.likes = json.load(f)
         print('> Get likes')
         for slug in self.solutions:
-            if slug not in self.likes:
+            if slug not in self.likes or slug in self.new_ac_title_slugs:
                 print(slug)
                 self.likes[slug] = self.user.likes(slug)
         with open(like_file, 'w', encoding='utf-8') as f:
