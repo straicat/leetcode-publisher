@@ -79,7 +79,7 @@ class User:
         runtime = re.findall(r"runtime: '(\d+ ms)',", html)[0]
         language = re.findall(r"getLangDisplay: '(\S+?)',", html)[0]
         code = re.findall(r"submissionCode: '(.+?)',\n", html)[0].encode('utf-8').decode('unicode-escape')
-        title_slug = re.findall(r"editCodeUrl: '/problems/(\S+?)/'", html)[0]
+        title_slug = re.findall(r"editCodeUrl: '\S*?/problems/(\S+?)/'", html)[0]
         return {'runtime': runtime, 'language': language, 'code': code, 'submission_id': submission_id,
                 'title_slug': title_slug}
 
