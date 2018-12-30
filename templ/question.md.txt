@@ -4,11 +4,11 @@
 
 {{ question.translatedContent }}
 
-### Question link
+### Related Links
 
-▶ [LeetCode](https://leetcode.com/problems/{{ question.questionTitleSlug }}/description/)
+Question: [LeetCode](https://leetcode.com/problems/{{ question.questionTitleSlug }}/description/)  /  [LeetCode中国](https://leetcode-cn.com/problems/{{ question.questionTitleSlug }}/description/)
 
-▶ [LeetCode中国](https://leetcode-cn.com/problems/{{ question.questionTitleSlug }}/description/)
+Solution: [LeetCode](https://leetcode.com/articles/{{ question.questionTitleSlug }}/)  /  [LeetCode中国](https://leetcode-cn.com/articles/{{ question.questionTitleSlug }}/)
 
 {% if note -%}
 ### Note
@@ -19,7 +19,7 @@
 ### Solution
 
 {% for solution in solutions -%}
-Language: **{{ solution.language }}** | Runtime: {{ solution.runtime }}
+Language: **{{ solution.language }}**  /  Runtime: {{ solution.runtime }}
 
 ```{{ solution.language }}
 {{ solution.code | replace("\t", "    ") }}
