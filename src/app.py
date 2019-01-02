@@ -209,7 +209,7 @@ class RepoGen:
         # This determines how to sort the problems
         ques_sort = sorted(
             [(ques['questionFrontendId'], ques['questionTitleSlug']) for ques in self.questions.values()],
-            key=lambda x: -1 * int(x[0]))
+            key=lambda x: int(x[0]))
         # You can customize the template
         tmpl = Template(open(os.path.join(PREFIX, 'templ', 'README.md.txt'), encoding='utf-8').read())
         readme = tmpl.render(questions=[self.questions[slug] for _, slug in ques_sort], likes=self.likes)
