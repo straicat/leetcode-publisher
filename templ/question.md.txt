@@ -1,22 +1,16 @@
-## {{ question.questionFrontendId }}. {{ question.questionTitle }} | {{ question.translatedTitle }}
+# {{ question.questionFrontendId }}. {{ question.questionTitle }} | {{ question.translatedTitle }}
 
-### Question description
+## Question description
 
 {{ question.translatedContent }}
 
-### Related Links
-
-Question: [LeetCode](https://leetcode.com/problems/{{ question.questionTitleSlug }}/description/)  /  [LeetCode中国](https://leetcode-cn.com/problems/{{ question.questionTitleSlug }}/description/)
-
-Solution: [LeetCode](https://leetcode.com/articles/{{ question.questionTitleSlug }}/)  /  [LeetCode中国](https://leetcode-cn.com/articles/{{ question.questionTitleSlug }}/)
-
 {% if note -%}
-### Note
+## Note
 
 {{ note | replace("\n", "\n\n") }}
 {% endif %}
 
-### Solution
+## Solution
 
 {% for solution in solutions -%}
 Language: **{{ solution.language }}**  /  Runtime: {{ solution.runtime }}
@@ -26,3 +20,9 @@ Language: **{{ solution.language }}**  /  Runtime: {{ solution.runtime }}
 ```
 
 {% endfor %}
+
+## Related Links
+
+Question: [LeetCode](https://leetcode.com/problems/{{ question.questionTitleSlug }}/description/)  /  [LeetCode中国](https://leetcode-cn.com/problems/{{ question.questionTitleSlug }}/description/)
+
+Solution: [LeetCode](https://leetcode.com/articles/{{ question.questionTitleSlug }}/)  /  [LeetCode中国](https://leetcode-cn.com/articles/{{ question.questionTitleSlug }}/)
