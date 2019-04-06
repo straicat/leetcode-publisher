@@ -1,5 +1,6 @@
 import json
 import re
+import time
 from functools import partial
 
 import requests
@@ -63,7 +64,6 @@ class User:
         if 'headers' in kwargs:
             head.update(kwargs['headers'])
             del kwargs['headers']
-        import time
         span_cnt = 0
         for _ in range(self.__options['retry_times']):
             r = self.sess.request(method, url, headers=head, **kwargs)
