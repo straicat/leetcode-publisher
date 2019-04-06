@@ -5,51 +5,19 @@ import os
 import shutil
 import subprocess
 import sys
-import time
 from collections import defaultdict
 from datetime import datetime
 
 import yaml
 from jinja2 import Template
-from requests import HTTPError
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from leetcode import UserCN, UserEN
 
-PREFIX = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-
-
-class UserCNSP(UserCN):
-    def __init__(self):
-        super().__init__()
-
-    def request(self, method, url, **kwargs):
-        for _ in range(3):
-            try:
-                return super().request(method, url, **kwargs)
-            except HTTPError:
-                for t in range(60, 0, -1):  # Error 429 - Rate limit exceeded!
-                    print('\rWait for %d seconds...    ' % t, end='', flush=True)
-                    time.sleep(1)
-                print()
-
-
-class UserENSP(UserEN):
-    def __init__(self):
-        super().__init__()
-
-    def request(self, method, url, **kwargs):
-        for _ in range(3):
-            try:
-                return super().request(method, url, **kwargs)
-            except HTTPError:
-                for t in range(60, 0, -1):  # Error 429 - Rate limit exceeded!
-                    print('\rWait for %d seconds...    ' % t, end='', flush=True)
-                    time.sleep(1)
-                print()
-
 
 class RepoGen:
+    LP_PREFIX = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+
     def __init__(self, conf):
         self.conf = conf
         self.user = None
@@ -63,24 +31,28 @@ class RepoGen:
 
     def main(self):
         self.logger()
-        if self.login():
-            print('> Login successful!')
-            self.prepare_submissions()
-            self.prepare_solutions()
-            self.prepare_questions()
-            self.prepare_notes()
-            self.prepare_likes()
-            self.prepare_render()
-            self.render_readme()
-            self.render_problems()
-            self.copy_source()
-            self.deploy()
-        else:
-            print('> Login failed!')
+        # noinspection PyBroadException
+        try:
+            if self.login():
+                print('> Login successful!')
+                self.prepare_submissions()
+                self.prepare_solutions()
+                self.prepare_questions()
+                self.prepare_notes()
+                self.prepare_likes()
+                self.prepare_render()
+                self.render_readme()
+                self.render_problems()
+                self.copy_source()
+                self.deploy()
+            else:
+                print('> Login failed!')
+        except Exception as e:
+            logging.exception(e)
 
     @staticmethod
     def logger():
-        log_file = os.path.join(PREFIX, '_cache', 'log', '%s.log' % datetime.now().strftime('%Y-%m-%d'))
+        log_file = os.path.join(__class__.LP_PREFIX, '_cache', 'log', '%s.log' % datetime.now().strftime('%Y-%m-%d'))
         os.makedirs(os.path.dirname(log_file), exist_ok=True)
         root = logging.getLogger()
         root.setLevel(logging.DEBUG)
@@ -95,13 +67,13 @@ class RepoGen:
     def login(self):
         domain = self.conf['account']['domain']
         if domain == 'cn':
-            self.user = UserCNSP()
+            self.user = UserCN()
         elif domain == 'en':
-            self.user = UserENSP()
+            self.user = UserEN()
         return self.user.login(self.conf['account']['user'], self.conf['account']['password'])
 
     def __submissions(self):
-        sub_file = os.path.join(PREFIX, '_cache', 'submissions.json')
+        sub_file = os.path.join(__class__.LP_PREFIX, '_cache', 'submissions.json')
         if os.path.exists(sub_file):
             with open(sub_file, 'r', encoding='utf-8') as f:
                 self.all_submissions = json.load(f)
@@ -135,7 +107,7 @@ class RepoGen:
             self.new_ac_submissions[sd['title']].append(sd)
 
     def prepare_solutions(self):
-        solu_file = os.path.join(PREFIX, '_cache', 'solutions.json')
+        solu_file = os.path.join(__class__.LP_PREFIX, '_cache', 'solutions.json')
         if os.path.exists(solu_file):
             with open(solu_file, 'r', encoding='utf-8') as f:
                 self.solutions = json.load(f)
@@ -157,11 +129,11 @@ class RepoGen:
             json.dump(self.solutions, f)
 
     def prepare_questions(self):
-        ques_file = os.path.join(PREFIX, '_cache', 'questions.json')
+        ques_file = os.path.join(__class__.LP_PREFIX, '_cache', 'questions.json')
         if os.path.exists(ques_file):
             with open(ques_file, 'r', encoding='utf-8') as f:
                 self.questions = json.load(f)
-        cn_user = UserCNSP()  # Chinese version comes with translation
+        cn_user = UserCN()  # Chinese version comes with translation
         print('> Get questions')
         for slug in self.solutions:
             if slug not in self.questions:
@@ -172,7 +144,7 @@ class RepoGen:
             json.dump(self.questions, f)
 
     def prepare_notes(self):
-        note_file = os.path.join(PREFIX, '_cache', 'notes.json')
+        note_file = os.path.join(__class__.LP_PREFIX, '_cache', 'notes.json')
         if os.path.exists(note_file):
             with open(note_file, 'r', encoding='utf-8') as f:
                 self.notes = json.load(f)
@@ -185,7 +157,7 @@ class RepoGen:
             json.dump(self.notes, f)
 
     def prepare_likes(self):
-        like_file = os.path.join(PREFIX, '_cache', 'likes.json')
+        like_file = os.path.join(__class__.LP_PREFIX, '_cache', 'likes.json')
         if os.path.exists(like_file):
             with open(like_file, 'r', encoding='utf-8') as f:
                 self.likes = json.load(f)
@@ -200,9 +172,9 @@ class RepoGen:
     @staticmethod
     def prepare_render():
         # delete folder "repo"
-        shutil.rmtree(os.path.join(PREFIX, 'repo'), ignore_errors=True)
-        os.makedirs(os.path.join(PREFIX, 'repo'))
-        os.makedirs(os.path.join(PREFIX, 'repo', 'problems'))
+        shutil.rmtree(os.path.join(__class__.LP_PREFIX, 'repo'), ignore_errors=True)
+        os.makedirs(os.path.join(__class__.LP_PREFIX, 'repo'))
+        os.makedirs(os.path.join(__class__.LP_PREFIX, 'repo', 'problems'))
 
     def render_readme(self):
         print('> Render README.md')
@@ -211,16 +183,16 @@ class RepoGen:
             [(ques['questionFrontendId'], ques['questionTitleSlug']) for ques in self.questions.values()],
             key=lambda x: int(x[0]))
         # You can customize the template
-        tmpl = Template(open(os.path.join(PREFIX, 'templ', 'README.md.txt'), encoding='utf-8').read())
+        tmpl = Template(open(os.path.join(__class__.LP_PREFIX, 'templ', 'README.md.txt'), encoding='utf-8').read())
         readme = tmpl.render(questions=[self.questions[slug] for _, slug in ques_sort], likes=self.likes)
-        with open(os.path.join(PREFIX, 'repo', 'README.md'), 'w', encoding='utf-8') as f:
+        with open(os.path.join(__class__.LP_PREFIX, 'repo', 'README.md'), 'w', encoding='utf-8') as f:
             f.write(readme)
 
     def render_problems(self):
         print('> Render problems')
         # You can customize the template
         tmpl = Template(
-            open(os.path.join(PREFIX, 'templ', 'question.md.txt'), encoding='utf-8').read())
+            open(os.path.join(__class__.LP_PREFIX, 'templ', 'question.md.txt'), encoding='utf-8').read())
         for slug in self.solutions:
             _question = self.questions[slug]
             _note = self.notes[slug]
@@ -228,28 +200,28 @@ class RepoGen:
             question = tmpl.render(question=_question, note=_note, solutions=_solutions)
             _filename = '%s-%s.md' % (_question['questionFrontendId'], slug)
             print(_filename)
-            with open(os.path.join(PREFIX, 'repo', 'problems', _filename), 'w', encoding='utf-8') as f:
+            with open(os.path.join(__class__.LP_PREFIX, 'repo', 'problems', _filename), 'w', encoding='utf-8') as f:
                 f.write(question)
 
     @staticmethod
     def copy_source():
         print('> Copy resources')
-        repo = os.path.join(PREFIX, 'repo')
-        for src in glob.glob(os.path.join(PREFIX, '_source', '*')):
-            print(os.path.relpath(src, PREFIX))
+        repo = os.path.join(__class__.LP_PREFIX, 'repo')
+        for src in glob.glob(os.path.join(__class__.LP_PREFIX, '_source', '*')):
+            print(os.path.relpath(src, __class__.LP_PREFIX))
             dst = os.path.join(repo, os.path.basename(src))
             if os.path.isdir(src):
                 if not os.path.isdir(dst):
                     shutil.copytree(src, dst)
                 else:
-                    print("Directory '%s' already exist." % os.path.relpath(dst, PREFIX))
+                    print("Directory '%s' already exist." % os.path.relpath(dst, __class__.LP_PREFIX))
             else:
                 shutil.copy(src, repo)
 
     def deploy(self):
         if self.conf.get('repo'):
             print('> Deploy to git repository')
-            repo = os.path.join(PREFIX, 'repo')
+            repo = os.path.join(__class__.LP_PREFIX, 'repo')
             cmds = []
             os.chdir(repo)
             shutil.rmtree(os.path.join(repo, '.git'), ignore_errors=True)
@@ -269,7 +241,7 @@ class RepoGen:
 
 
 def _main():
-    with open(os.path.join(PREFIX, 'config.yml'), encoding='utf-8') as f:
+    with open(os.path.join(RepoGen.LP_PREFIX, 'config.yml'), encoding='utf-8') as f:
         conf = yaml.load(f)
     rg = RepoGen(conf)
     rg.main()

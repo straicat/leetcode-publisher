@@ -5,9 +5,6 @@ from functools import partial
 import requests
 from requests.adapters import HTTPAdapter
 
-DOMAIN_EN = 'https://leetcode.com'
-DOMAIN_CN = 'https://leetcode-cn.com'
-
 
 # noinspection PyPep8Naming
 class GraphqlAPI:
@@ -25,11 +22,27 @@ class GraphqlAPI:
 
 
 class User:
+    DOMAIN_EN = 'https://leetcode.com'
+    DOMAIN_CN = 'https://leetcode-cn.com'
+    USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36'
+
     def __init__(self, domain):
         self.__domain = domain
+        self.__options = {}
+        self.__variables = {'lastkey': '', 'x-newrelic-id': ''}
         self.sess = requests.Session()
         self.sess.mount('https://', HTTPAdapter(max_retries=5))
         self.sess.request = partial(self.sess.request, timeout=(3.05, 27))
+        self.set_options()
+
+    def set_options(self, retry_span=3, retry_times=100, long_wait=60, turn_long_wait_cnt=3, shield_print=False):
+        self.__options.update({
+            'retry_span': retry_span,
+            'retry_times': retry_times,
+            'long_wait': long_wait,
+            'turn_long_wait_cnt': turn_long_wait_cnt,
+            'shield_print': shield_print,
+        })
 
     @property
     def domain(self):
@@ -38,20 +51,45 @@ class User:
     @property
     def csrftoken(self):
         if 'csrftoken' not in self.sess.cookies:
-            self.sess.get(self.domain + '/')
+            r = self.sess.get(self.domain + '/')
+            xpid = re.findall(r'xpid:"(\w+=*)"', r.text)
+            if xpid:
+                self.__variables['x-newrelic-id'] = xpid[0]
         return self.sess.cookies.get('csrftoken')
 
     def request(self, method, url, **kwargs):
         if not url.startswith('http'):
             url = self.domain + url
+        head = {'referer': url, 'x-csrftoken': self.csrftoken, 'user-agent': __class__.USER_AGENT,
+                'x-newrelic-id': self.__variables['x-newrelic-id']}
         if 'headers' in kwargs:
-            head = kwargs['headers']
+            head.update(kwargs['headers'])
             del kwargs['headers']
-        else:
-            head = {'referer': url, 'x-csrftoken': self.csrftoken}
-        r = self.sess.request(method, url, headers=head, **kwargs)
-        r.raise_for_status()
-        return r
+        import time
+        span_cnt = 0
+        for _ in range(self.__options['retry_times']):
+            r = self.sess.request(method, url, headers=head, **kwargs)
+            if r.ok:
+                return r
+            if r.status_code == 429:
+                for t in range(self.__options['long_wait'], 0, -1):  # Error 429 - Rate limit exceeded!
+                    if not self.__options['shield_print']:
+                        print('\rError 429, Wait for %d seconds...    ' % t, end='', flush=True)
+                    time.sleep(1)
+                if not self.__options['shield_print']:
+                    print()
+            else:
+                span_cnt += 1
+                if span_cnt % self.__options['turn_long_wait_cnt'] == 0:
+                    for t in range(self.__options['long_wait'], 0, -1):  # Error 429 - Rate limit exceeded!
+                        if not self.__options['shield_print']:
+                            print('\rError %d, Wait for %d seconds...    ' % (r.status_code, t), end='', flush=True)
+                        time.sleep(1)
+                    if not self.__options['shield_print']:
+                        print()
+                else:
+                    time.sleep(self.__options['retry_span'])
+        raise requests.HTTPError
 
     def login(self, user, password):
         data = {'login': user, 'password': password}
@@ -70,15 +108,20 @@ class User:
 
     def submissions(self, page):
         url = self.domain + '/api/submissions/'
-        params = {'offset': (page - 1) * 20, 'limit': 20}
-        return self.request('GET', url, params=params).json()
+        headers = {'referer': self.domain + '/submissions/'}
+        params = {'offset': (page - 1) * 20, 'limit': 20, 'lastkey': self.__variables['lastkey']}
+        j = self.request('GET', url, params=params, headers=headers).json()
+        self.__variables['lastkey'] = j['last_key']
+        return j
 
     def solution(self, submission_id):
         url = self.domain + '/submissions/detail/%d/' % submission_id
         html = self.request('GET', url).text
         runtime = re.findall(r"runtime: '(\d+ ms)',", html)[0]
         language = re.findall(r"getLangDisplay: '(\S+?)',", html)[0]
-        code = re.findall(r"submissionCode: '(.+?)',\n", html)[0].encode('utf-8').decode('unicode-escape')
+        code = re.findall(r"submissionCode: '(.+?)',\n", html)[0]
+        for ch in set(re.findall(r'\\u\w{4}', code)):
+            code = code.replace(ch, ch.encode('utf-8').decode('unicode-escape'))
         title_slug = re.findall(r"editCodeUrl: '\S*?/problems/(\S+?)/'", html)[0]
         return {'runtime': runtime, 'language': language, 'code': code, 'submission_id': submission_id,
                 'title_slug': title_slug}
@@ -90,9 +133,9 @@ class User:
 
 class UserEN(User):
     def __init__(self):
-        super().__init__(domain=DOMAIN_EN)
+        super().__init__(domain=User.DOMAIN_EN)
 
 
 class UserCN(User):
     def __init__(self):
-        super().__init__(domain=DOMAIN_CN)
+        super().__init__(domain=User.DOMAIN_CN)
