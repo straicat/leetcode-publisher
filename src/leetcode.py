@@ -120,7 +120,7 @@ class User:
     def note(self, question_id):
         url = self.domain + '/problems/note/%s/' % question_id
         return self.request('GET', url).json().get('content')
-    
+
     def summary(self):
         url = self.domain + '/api/problems/all/'
         return self.request('GET', url).json()
