@@ -1,4 +1,4 @@
-简体中文 | [Enlish](README.EN.md)
+简体中文 | [English](README.EN.md)
 
 ## leetcode-publisher
 
