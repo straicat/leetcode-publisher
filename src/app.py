@@ -15,6 +15,13 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from leetcode import UserCN, UserEN
 
 
+def console(*args, **kwargs):
+    sep = kwargs.get('sep') or ' '
+    logging.info(sep.join(map(str, args)))
+    args = tuple(str(arg).encode(sys.stdout.encoding, 'ignore').decode(sys.stdout.encoding) for arg in args)
+    print(*args, **kwargs)
+
+
 class RepoGen:
     LP_PREFIX = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 
@@ -31,10 +38,11 @@ class RepoGen:
 
     def main(self):
         self.logger()
+        console('{0} leetcode publisher start {0}'.format('=' * 20))
         # noinspection PyBroadException
         try:
             if self.login():
-                print('> Login successful!')
+                console('> Login successful!')
                 self.prepare_submissions()
                 self.prepare_solutions()
                 self.prepare_questions()
@@ -46,9 +54,10 @@ class RepoGen:
                 self.copy_source()
                 self.deploy()
             else:
-                print('> Login failed!')
+                console('> Login failed!')
         except Exception as e:
             logging.exception(e)
+        console('{0} leetcode publisher end {0}'.format('=' * 20))
 
     @staticmethod
     def logger():
@@ -65,6 +74,7 @@ class RepoGen:
         root.addHandler(sh)
 
     def login(self):
+        self.conf['account']['domain'] = self.conf['account'].get('domain', 'en').lower()
         domain = self.conf['account']['domain']
         if domain == 'cn':
             self.user = UserCN()
@@ -92,7 +102,8 @@ class RepoGen:
                     break
                 self.all_submissions.insert(0, sd)
                 yield sd
-        print('\r> Get submission record completed!            ')
+        print('\r', end='', flush=True)
+        console('> Get submission record completed!            ')
 
         with open(sub_file, 'w', encoding='utf-8') as f:
             json.dump(self.all_submissions, f)
@@ -111,9 +122,9 @@ class RepoGen:
         if os.path.exists(solu_file):
             with open(solu_file, 'r', encoding='utf-8') as f:
                 self.solutions = json.load(f)
-        print('> Get solutions')
+        console('> Get solutions')
         for title, sublist in self.new_ac_submissions.items():
-            print(title)
+            console(title)
             for sub in sublist[::-1]:
                 solu = self.user.solution(sub['id'])
                 slug = solu['title_slug']
@@ -134,10 +145,10 @@ class RepoGen:
             with open(ques_file, 'r', encoding='utf-8') as f:
                 self.questions = json.load(f)
         cn_user = UserCN()  # Chinese version comes with translation
-        print('> Get questions')
+        console('> Get questions')
         for slug in self.solutions:
             if slug not in self.questions:
-                print(slug)
+                console(slug)
                 # if there is no the question in LeetCode China, try to search it in LeetCode main site instead
                 self.questions[slug] = cn_user.question(slug) or UserEN().question(slug)
         with open(ques_file, 'w', encoding='utf-8') as f:
@@ -148,10 +159,10 @@ class RepoGen:
         if os.path.exists(note_file):
             with open(note_file, 'r', encoding='utf-8') as f:
                 self.notes = json.load(f)
-        print('> Get notes')
+        console('> Get notes')
         for slug in self.solutions:
             if slug not in self.notes or slug in self.new_ac_title_slugs:
-                print(slug)
+                console(slug)
                 self.notes[slug] = self.user.note(self.questions[slug]['questionId'])
         with open(note_file, 'w', encoding='utf-8') as f:
             json.dump(self.notes, f)
@@ -161,10 +172,10 @@ class RepoGen:
         if os.path.exists(like_file):
             with open(like_file, 'r', encoding='utf-8') as f:
                 self.likes = json.load(f)
-        print('> Get likes')
+        console('> Get likes')
         for slug in self.solutions:
             if slug not in self.likes or slug in self.new_ac_title_slugs:
-                print(slug)
+                console(slug)
                 self.likes[slug] = self.user.likes(slug)
         with open(like_file, 'w', encoding='utf-8') as f:
             json.dump(self.likes, f)
@@ -177,19 +188,21 @@ class RepoGen:
         os.makedirs(os.path.join(__class__.LP_PREFIX, 'repo', 'problems'))
 
     def render_readme(self):
-        print('> Render README.md')
+        summary = self.user.summary()
+        console('> Render README.md')
         # This determines how to sort the problems
         ques_sort = sorted(
             [(ques['questionFrontendId'], ques['questionTitleSlug']) for ques in self.questions.values()],
             key=lambda x: int(x[0]))
         # You can customize the template
         tmpl = Template(open(os.path.join(__class__.LP_PREFIX, 'templ', 'README.md.txt'), encoding='utf-8').read())
-        readme = tmpl.render(questions=[self.questions[slug] for _, slug in ques_sort], likes=self.likes)
+        readme = tmpl.render(questions=[self.questions[slug] for _, slug in ques_sort], likes=self.likes,
+                             date=datetime.now(), summary=summary, conf=self.conf)
         with open(os.path.join(__class__.LP_PREFIX, 'repo', 'README.md'), 'w', encoding='utf-8') as f:
             f.write(readme)
 
     def render_problems(self):
-        print('> Render problems')
+        console('> Render problems')
         # You can customize the template
         tmpl = Template(
             open(os.path.join(__class__.LP_PREFIX, 'templ', 'question.md.txt'), encoding='utf-8').read())
@@ -197,7 +210,10 @@ class RepoGen:
             _question = self.questions[slug]
             _note = self.notes[slug]
             _solutions = self.solutions[slug]
-            question = tmpl.render(question=_question, note=_note, solutions=_solutions)
+            question = tmpl.render(question=_question, note=_note, solutions=_solutions,
+                                   date=datetime.now(), conf=self.conf)
+            if sys.platform != 'win32':
+                question = question.replace('\r\n', '\n')
             _filename = '%s-%s.md' % (_question['questionFrontendId'], slug)
             print(_filename)
             with open(os.path.join(__class__.LP_PREFIX, 'repo', 'problems', _filename), 'w', encoding='utf-8') as f:
@@ -205,22 +221,22 @@ class RepoGen:
 
     @staticmethod
     def copy_source():
-        print('> Copy resources')
+        console('> Copy resources')
         repo = os.path.join(__class__.LP_PREFIX, 'repo')
         for src in glob.glob(os.path.join(__class__.LP_PREFIX, '_source', '*')):
-            print(os.path.relpath(src, __class__.LP_PREFIX))
+            console(os.path.relpath(src, __class__.LP_PREFIX))
             dst = os.path.join(repo, os.path.basename(src))
             if os.path.isdir(src):
                 if not os.path.isdir(dst):
                     shutil.copytree(src, dst)
                 else:
-                    print("Directory '%s' already exist." % os.path.relpath(dst, __class__.LP_PREFIX))
+                    console("Directory '%s' already exist." % os.path.relpath(dst, __class__.LP_PREFIX))
             else:
                 shutil.copy(src, repo)
 
     def deploy(self):
         if self.conf.get('repo'):
-            print('> Deploy to git repository')
+            console('> Deploy to git repository')
             repo = os.path.join(__class__.LP_PREFIX, 'repo')
             cmds = []
             os.chdir(repo)
@@ -241,10 +257,21 @@ class RepoGen:
 
 
 def _main():
-    with open(os.path.join(RepoGen.LP_PREFIX, 'config.yml'), encoding='utf-8') as f:
-        conf = yaml.load(f)
-    rg = RepoGen(conf)
-    rg.main()
+    conf_file = os.path.join(RepoGen.LP_PREFIX, 'config.yml')
+    if os.path.isfile(conf_file):
+        for ec in ('utf-8', 'gb18030', 'gb2312', 'gbk'):
+            try:
+                with open(conf_file, encoding=ec) as fp:
+                    conf = yaml.load(fp)
+                break
+            except UnicodeDecodeError:
+                continue
+            except yaml.YAMLError:
+                print('File does not conform to the YAML format specification：%s' % conf_file)
+        rg = RepoGen(conf)
+        rg.main()
+    else:
+        print('File does not exist: %s' % conf_file)
 
 
 if __name__ == '__main__':

@@ -24,7 +24,6 @@ class GraphqlAPI:
 class User:
     DOMAIN_EN = 'https://leetcode.com'
     DOMAIN_CN = 'https://leetcode-cn.com'
-    USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36'
 
     def __init__(self, domain):
         self.__domain = domain
@@ -60,8 +59,7 @@ class User:
     def request(self, method, url, **kwargs):
         if not url.startswith('http'):
             url = self.domain + url
-        head = {'referer': url, 'x-csrftoken': self.csrftoken, 'user-agent': __class__.USER_AGENT,
-                'x-newrelic-id': self.__variables['x-newrelic-id']}
+        head = {'referer': url, 'x-csrftoken': self.csrftoken, 'x-newrelic-id': self.__variables['x-newrelic-id']}
         if 'headers' in kwargs:
             head.update(kwargs['headers'])
             del kwargs['headers']
@@ -71,17 +69,10 @@ class User:
             r = self.sess.request(method, url, headers=head, **kwargs)
             if r.ok:
                 return r
-            if r.status_code == 429:
-                for t in range(self.__options['long_wait'], 0, -1):  # Error 429 - Rate limit exceeded!
-                    if not self.__options['shield_print']:
-                        print('\rError 429, Wait for %d seconds...    ' % t, end='', flush=True)
-                    time.sleep(1)
-                if not self.__options['shield_print']:
-                    print()
             else:
                 span_cnt += 1
                 if span_cnt % self.__options['turn_long_wait_cnt'] == 0:
-                    for t in range(self.__options['long_wait'], 0, -1):  # Error 429 - Rate limit exceeded!
+                    for t in range(self.__options['long_wait'], 0, -1):
                         if not self.__options['shield_print']:
                             print('\rError %d, Wait for %d seconds...    ' % (r.status_code, t), end='', flush=True)
                         time.sleep(1)
@@ -129,6 +120,10 @@ class User:
     def note(self, question_id):
         url = self.domain + '/problems/note/%s/' % question_id
         return self.request('GET', url).json().get('content')
+    
+    def summary(self):
+        url = self.domain + '/api/problems/all/'
+        return self.request('GET', url).json()
 
 
 class UserEN(User):

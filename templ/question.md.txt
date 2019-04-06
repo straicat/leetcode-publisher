@@ -2,6 +2,7 @@
 
 ## Question description
 
+<!--If you want to use the English description, use {{ question.content }} instead-->
 {{ question.translatedContent }}
 
 {% if note -%}
