@@ -1,4 +1,4 @@
-# {{ question.questionFrontendId }}. {{ question.questionTitle }} | {{ question.translatedTitle }}
+# {{ question.questionFrontendId }}. {{ question.titleSlug }} | {{ question.translatedTitle }}
 
 ## Question description
 
