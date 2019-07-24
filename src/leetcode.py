@@ -11,8 +11,7 @@ from requests.adapters import HTTPAdapter
 class GraphqlAPI:
     @staticmethod
     def getQuestionDetail(title_slug):
-        return '{"operationName":"getQuestionDetail","variables":{"titleSlug":"%s"},"query":"query getQuestionDetail($titleSlug: String!) {\\n  isCurrentUserAuthenticated\\n  question(titleSlug: $titleSlug) {\\n    questionId\\n    questionFrontendId\\n    questionTitle\\n    translatedTitle\\n    questionTitleSlug\\n    content\\n    translatedContent\\n    difficulty\\n    stats\\n    allowDiscuss\\n    contributors {\\n      username\\n      profileUrl\\n      __typename\\n    }\\n    similarQuestions\\n    mysqlSchemas\\n    randomQuestionUrl\\n    sessionId\\n    categoryTitle\\n    submitUrl\\n    interpretUrl\\n    codeDefinition\\n    sampleTestCase\\n    enableTestMode\\n    metaData\\n    langToValidPlayground\\n    enableRunCode\\n    enableSubmit\\n    judgerAvailable\\n    infoVerified\\n    envInfo\\n    urlManager\\n    article\\n    questionDetailUrl\\n    libraryUrl\\n    companyTags {\\n      name\\n      slug\\n      translatedName\\n      __typename\\n    }\\n    companyTagStats\\n    topicTags {\\n      name\\n      slug\\n      translatedName\\n      __typename\\n    }\\n    __typename\\n  }\\n  interviewed {\\n    interviewedUrl\\n    companies {\\n      id\\n      name\\n      slug\\n      __typename\\n    }\\n    timeOptions {\\n      id\\n      name\\n      __typename\\n    }\\n    stageOptions {\\n      id\\n      name\\n      __typename\\n    }\\n    __typename\\n  }\\n  subscribeUrl\\n  isPremium\\n  loginUrl\\n}\\n"}' % title_slug
-
+        return '{"operationName":"questionData","variables":{"titleSlug":"%s"},"query":"query questionData($titleSlug: String!) {\n  question(titleSlug: $titleSlug) {\n    questionId\n    questionFrontendId\n    boundTopicId\n    title\n    titleSlug\n    content\n    translatedTitle\n    translatedContent\n    isPaidOnly\n    difficulty\n    likes\n    dislikes\n    isLiked\n    similarQuestions\n    contributors {\n      username\n      profileUrl\n      avatarUrl\n      __typename\n    }\n    langToValidPlayground\n    topicTags {\n      name\n      slug\n      translatedName\n      __typename\n    }\n    companyTagStats\n    codeSnippets {\n      lang\n      langSlug\n      code\n      __typename\n    }\n    stats\n    hints\n    solution {\n      id\n      canSeeDetail\n      __typename\n    }\n    status\n    sampleTestCase\n    metaData\n    judgerAvailable\n    judgeType\n    mysqlSchemas\n    enableRunCode\n    enableTestMode\n    envInfo\n    libraryUrl\n    __typename\n  }\n}\n"}'% title_slug
     @staticmethod
     def getLikesAndFavorites(title_slug):
         return '{"operationName":"getLikesAndFavorites","variables":{"titleSlug":"%s"},"query":"query getLikesAndFavorites($titleSlug: String!) {\\n  question(titleSlug: $titleSlug) {\\n    questionId\\n    likes\\n    dislikes\\n    isLiked\\n    __typename\\n  }\\n  favoritesLists {\\n    publicFavorites {\\n      ...favoriteFields\\n      __typename\\n    }\\n    privateFavorites {\\n      ...favoriteFields\\n      __typename\\n    }\\n    __typename\\n  }\\n}\\n\\nfragment favoriteFields on FavoriteNode {\\n  idHash\\n  id\\n  name\\n  isPublicFavorite\\n  viewCount\\n  creator\\n  isWatched\\n  questions {\\n    questionId\\n    title\\n    titleSlug\\n    __typename\\n  }\\n  __typename\\n}\\n"}' % title_slug
@@ -80,7 +79,7 @@ class User:
                         print()
                 else:
                     time.sleep(self.__options['retry_span'])
-        raise requests.HTTPError
+        #raise requests.HTTPError
 
     def login(self, user, password):
         data = {'login': user, 'password': password}
@@ -88,7 +87,7 @@ class User:
         return r.ok
 
     def graphql(self, payload):
-        r = self.request('POST', self.domain + '/graphql', json=json.loads(payload))
+        r = self.request('POST', self.domain + '/graphql', json=json.loads(payload, strict=False))
         return r.json()
 
     def question(self, title_slug):
