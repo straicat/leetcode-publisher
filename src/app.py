@@ -192,12 +192,16 @@ class RepoGen:
         console('> Render README.md')
         # This determines how to sort the problems
         ques_sort = sorted(
-            [(ques['questionFrontendId'], ques['questionTitleSlug']) for ques in self.questions.values()],
+            [(ques['questionFrontendId'], ques['titleSlug']) for ques in self.questions.values()],
             key=lambda x: int(x[0]))
+        # print('ques_sort:')
+        # print(ques_sort)
         # You can customize the template
+        # questions = [self.questions[slug] for (_, slug) in ques_sort]
+        # print("questions:")
+        # print(questions)
         tmpl = Template(open(os.path.join(__class__.LP_PREFIX, 'templ', 'README.md.txt'), encoding='utf-8').read())
-        readme = tmpl.render(questions=[self.questions[slug] for _, slug in ques_sort], likes=self.likes,
-                             date=datetime.now(), summary=summary, conf=self.conf)
+        readme = tmpl.render(questions=[self.questions[slug] for (_, slug) in ques_sort],date=datetime.now(), summary=summary, conf=self.conf)
         with open(os.path.join(__class__.LP_PREFIX, 'repo', 'README.md'), 'w', encoding='utf-8') as f:
             f.write(readme)
 
