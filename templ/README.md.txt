@@ -16,8 +16,8 @@ This repository is automatically generated and deployed by [**leetcode-publisher
 
 My LeetCode homepage : [{{ summary.user_name }} - Profile - LeetCode](https://leetcode{% if conf.account.domain == "cn" %}-cn{% endif %}.com/{{ summary.user_name }}/)
 
-|  #  | Title |  标题  | Difficulty | Like |
-|:---:|:-----:|:-----:|:----------:|:----:|
+|  #  | Title |  标题  | Difficulty |
+|:---:|:-----:|:-----:|:----------:|
 {% for question in questions -%}
-|{{ question.questionFrontendId }} | [{{ question.questionTitle }}](problems/{{ question.questionFrontendId }}-{{ question.questionTitleSlug }}.md) | [{{ question.translatedTitle }}](problems/{{ question.questionFrontendId }}-{{ question.questionTitleSlug }}.md) | ![](img/{{ question.difficulty | lower }}.png) | ![](img/like_{{ likes[question.questionTitleSlug].isLiked | lower }}.png) |
+|{{ question.questionFrontendId }} | [{{ question.title }}](problems/{{ question.questionFrontendId }}-{{ question.titleSlug }}.md) | [{{ question.translatedTitle }}](problems/{{ question.questionFrontendId }}-{{ question.titleSlug }}.md) | ![](img/{{ question.difficulty | lower }}.png) |
 {% endfor %}

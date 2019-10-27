@@ -14,6 +14,8 @@ from jinja2 import Template
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from leetcode import UserCN, UserEN
 
+LP_PREFIX = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+
 
 def console(*args, **kwargs):
     sep = kwargs.get('sep') or ' '
@@ -23,7 +25,6 @@ def console(*args, **kwargs):
 
 
 class RepoGen:
-    LP_PREFIX = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 
     def __init__(self, conf):
         self.conf = conf
@@ -47,7 +48,7 @@ class RepoGen:
                 self.prepare_solutions()
                 self.prepare_questions()
                 self.prepare_notes()
-                self.prepare_likes()
+                # self.prepare_likes()
                 self.prepare_render()
                 self.render_readme()
                 self.render_problems()
@@ -61,7 +62,7 @@ class RepoGen:
 
     @staticmethod
     def logger():
-        log_file = os.path.join(__class__.LP_PREFIX, '_cache', 'log', '%s.log' % datetime.now().strftime('%Y-%m-%d'))
+        log_file = os.path.join(LP_PREFIX, '_cache', 'log', '%s.log' % datetime.now().strftime('%Y-%m-%d'))
         os.makedirs(os.path.dirname(log_file), exist_ok=True)
         root = logging.getLogger()
         root.setLevel(logging.DEBUG)
@@ -83,7 +84,7 @@ class RepoGen:
         return self.user.login(self.conf['account']['user'], self.conf['account']['password'])
 
     def __submissions(self):
-        sub_file = os.path.join(__class__.LP_PREFIX, '_cache', 'submissions.json')
+        sub_file = os.path.join(LP_PREFIX, '_cache', 'submissions.json')
         if os.path.exists(sub_file):
             with open(sub_file, 'r', encoding='utf-8') as f:
                 self.all_submissions = json.load(f)
@@ -118,7 +119,7 @@ class RepoGen:
             self.new_ac_submissions[sd['title']].append(sd)
 
     def prepare_solutions(self):
-        solu_file = os.path.join(__class__.LP_PREFIX, '_cache', 'solutions.json')
+        solu_file = os.path.join(LP_PREFIX, '_cache', 'solutions.json')
         if os.path.exists(solu_file):
             with open(solu_file, 'r', encoding='utf-8') as f:
                 self.solutions = json.load(f)
@@ -140,7 +141,7 @@ class RepoGen:
             json.dump(self.solutions, f)
 
     def prepare_questions(self):
-        ques_file = os.path.join(__class__.LP_PREFIX, '_cache', 'questions.json')
+        ques_file = os.path.join(LP_PREFIX, '_cache', 'questions.json')
         if os.path.exists(ques_file):
             with open(ques_file, 'r', encoding='utf-8') as f:
                 self.questions = json.load(f)
@@ -155,7 +156,7 @@ class RepoGen:
             json.dump(self.questions, f)
 
     def prepare_notes(self):
-        note_file = os.path.join(__class__.LP_PREFIX, '_cache', 'notes.json')
+        note_file = os.path.join(LP_PREFIX, '_cache', 'notes.json')
         if os.path.exists(note_file):
             with open(note_file, 'r', encoding='utf-8') as f:
                 self.notes = json.load(f)
@@ -168,7 +169,7 @@ class RepoGen:
             json.dump(self.notes, f)
 
     def prepare_likes(self):
-        like_file = os.path.join(__class__.LP_PREFIX, '_cache', 'likes.json')
+        like_file = os.path.join(LP_PREFIX, '_cache', 'likes.json')
         if os.path.exists(like_file):
             with open(like_file, 'r', encoding='utf-8') as f:
                 self.likes = json.load(f)
@@ -183,29 +184,29 @@ class RepoGen:
     @staticmethod
     def prepare_render():
         # delete folder "repo"
-        shutil.rmtree(os.path.join(__class__.LP_PREFIX, 'repo'), ignore_errors=True)
-        os.makedirs(os.path.join(__class__.LP_PREFIX, 'repo'))
-        os.makedirs(os.path.join(__class__.LP_PREFIX, 'repo', 'problems'))
+        shutil.rmtree(os.path.join(LP_PREFIX, 'repo'), ignore_errors=True)
+        os.makedirs(os.path.join(LP_PREFIX, 'repo'))
+        os.makedirs(os.path.join(LP_PREFIX, 'repo', 'problems'))
 
     def render_readme(self):
         summary = self.user.summary()
         console('> Render README.md')
         # This determines how to sort the problems
         ques_sort = sorted(
-            [(ques['questionFrontendId'], ques['questionTitleSlug']) for ques in self.questions.values()],
+            [(ques['questionFrontendId'], ques['titleSlug']) for ques in self.questions.values()],
             key=lambda x: int(x[0]))
         # You can customize the template
-        tmpl = Template(open(os.path.join(__class__.LP_PREFIX, 'templ', 'README.md.txt'), encoding='utf-8').read())
+        tmpl = Template(open(os.path.join(LP_PREFIX, 'templ', 'README.md.txt'), encoding='utf-8').read())
         readme = tmpl.render(questions=[self.questions[slug] for _, slug in ques_sort], likes=self.likes,
                              date=datetime.now(), summary=summary, conf=self.conf)
-        with open(os.path.join(__class__.LP_PREFIX, 'repo', 'README.md'), 'w', encoding='utf-8') as f:
+        with open(os.path.join(LP_PREFIX, 'repo', 'README.md'), 'w', encoding='utf-8') as f:
             f.write(readme)
 
     def render_problems(self):
         console('> Render problems')
         # You can customize the template
         tmpl = Template(
-            open(os.path.join(__class__.LP_PREFIX, 'templ', 'question.md.txt'), encoding='utf-8').read())
+            open(os.path.join(LP_PREFIX, 'templ', 'question.md.txt'), encoding='utf-8').read())
         for slug in self.solutions:
             _question = self.questions[slug]
             _note = self.notes[slug]
@@ -216,28 +217,28 @@ class RepoGen:
                 question = question.replace('\r\n', '\n')
             _filename = '%s-%s.md' % (_question['questionFrontendId'], slug)
             print(_filename)
-            with open(os.path.join(__class__.LP_PREFIX, 'repo', 'problems', _filename), 'w', encoding='utf-8') as f:
+            with open(os.path.join(LP_PREFIX, 'repo', 'problems', _filename), 'w', encoding='utf-8') as f:
                 f.write(question)
 
     @staticmethod
     def copy_source():
         console('> Copy resources')
-        repo = os.path.join(__class__.LP_PREFIX, 'repo')
-        for src in glob.glob(os.path.join(__class__.LP_PREFIX, '_source', '*')):
-            console(os.path.relpath(src, __class__.LP_PREFIX))
+        repo = os.path.join(LP_PREFIX, 'repo')
+        for src in glob.glob(os.path.join(LP_PREFIX, '_source', '*')):
+            console(os.path.relpath(src, LP_PREFIX))
             dst = os.path.join(repo, os.path.basename(src))
             if os.path.isdir(src):
                 if not os.path.isdir(dst):
                     shutil.copytree(src, dst)
                 else:
-                    console("Directory '%s' already exist." % os.path.relpath(dst, __class__.LP_PREFIX))
+                    console("Directory '%s' already exist." % os.path.relpath(dst, LP_PREFIX))
             else:
                 shutil.copy(src, repo)
 
     def deploy(self):
         if self.conf.get('repo'):
             console('> Deploy to git repository')
-            repo = os.path.join(__class__.LP_PREFIX, 'repo')
+            repo = os.path.join(LP_PREFIX, 'repo')
             cmds = []
             os.chdir(repo)
             shutil.rmtree(os.path.join(repo, '.git'), ignore_errors=True)
@@ -248,16 +249,18 @@ class RepoGen:
                 cmds.append('git push -f -q %s master:master' % remote)
 
             for cmd in cmds:
+                console(cmd)
                 try:
                     ret = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
                     if ret:
                         print(ret)
                 except subprocess.CalledProcessError:
+                    console("Get error when run '%s'" % cmd)
                     break
 
 
 def _main():
-    conf_file = os.path.join(RepoGen.LP_PREFIX, 'config.yml')
+    conf_file = os.path.join(LP_PREFIX, 'config.yml')
     if os.path.isfile(conf_file):
         for ec in ('utf-8', 'gb18030', 'gb2312', 'gbk'):
             try:

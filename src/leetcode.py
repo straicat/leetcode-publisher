@@ -11,7 +11,7 @@ from requests.adapters import HTTPAdapter
 class GraphqlAPI:
     @staticmethod
     def getQuestionDetail(title_slug):
-        return '{"operationName":"getQuestionDetail","variables":{"titleSlug":"%s"},"query":"query getQuestionDetail($titleSlug: String!) {\\n  isCurrentUserAuthenticated\\n  question(titleSlug: $titleSlug) {\\n    questionId\\n    questionFrontendId\\n    questionTitle\\n    translatedTitle\\n    questionTitleSlug\\n    content\\n    translatedContent\\n    difficulty\\n    stats\\n    allowDiscuss\\n    contributors {\\n      username\\n      profileUrl\\n      __typename\\n    }\\n    similarQuestions\\n    mysqlSchemas\\n    randomQuestionUrl\\n    sessionId\\n    categoryTitle\\n    submitUrl\\n    interpretUrl\\n    codeDefinition\\n    sampleTestCase\\n    enableTestMode\\n    metaData\\n    langToValidPlayground\\n    enableRunCode\\n    enableSubmit\\n    judgerAvailable\\n    infoVerified\\n    envInfo\\n    urlManager\\n    article\\n    questionDetailUrl\\n    libraryUrl\\n    companyTags {\\n      name\\n      slug\\n      translatedName\\n      __typename\\n    }\\n    companyTagStats\\n    topicTags {\\n      name\\n      slug\\n      translatedName\\n      __typename\\n    }\\n    __typename\\n  }\\n  interviewed {\\n    interviewedUrl\\n    companies {\\n      id\\n      name\\n      slug\\n      __typename\\n    }\\n    timeOptions {\\n      id\\n      name\\n      __typename\\n    }\\n    stageOptions {\\n      id\\n      name\\n      __typename\\n    }\\n    __typename\\n  }\\n  subscribeUrl\\n  isPremium\\n  loginUrl\\n}\\n"}' % title_slug
+        return '{"operationName":"questionData","variables":{"titleSlug":"%s"},"query":"query questionData($titleSlug: String!) {\\n  question(titleSlug: $titleSlug) {\\n    questionId\\n    questionFrontendId\\n    boundTopicId\\n    title\\n    titleSlug\\n    content\\n    translatedTitle\\n    translatedContent\\n    isPaidOnly\\n    difficulty\\n    likes\\n    dislikes\\n    isLiked\\n    similarQuestions\\n    contributors {\\n      username\\n      profileUrl\\n      avatarUrl\\n      __typename\\n    }\\n    langToValidPlayground\\n    topicTags {\\n      name\\n      slug\\n      translatedName\\n      __typename\\n    }\\n    companyTagStats\\n    codeSnippets {\\n      lang\\n      langSlug\\n      code\\n      __typename\\n    }\\n    stats\\n    hints\\n    solution {\\n      id\\n      canSeeDetail\\n      __typename\\n    }\\n    status\\n    sampleTestCase\\n    metaData\\n    judgerAvailable\\n    judgeType\\n    mysqlSchemas\\n    enableRunCode\\n    enableTestMode\\n    envInfo\\n    libraryUrl\\n    __typename\\n  }\\n}\\n"}' % title_slug
 
     @staticmethod
     def getLikesAndFavorites(title_slug):
@@ -20,6 +20,10 @@ class GraphqlAPI:
     @staticmethod
     def fetchAllLeetcodeTemplates():
         return '{"operationName":"fetchAllLeetcodeTemplates","variables":{},"query":"query fetchAllLeetcodeTemplates {\\n  allLeetcodePlaygroundTemplates {\\n    templateId\\n    name\\n    nameSlug\\n    __typename\\n  }\\n}\\n"}'
+
+    @staticmethod
+    def addQuestionToFavorite(favorite_id_hash, question_id):
+        return '{"operationName":"addQuestionToFavorite","variables":{"favoriteIdHash":"%s","questionId":"%d"},"query":"mutation addQuestionToFavorite($favoriteIdHash: String!, $questionId: String!) {\\n  addQuestionToFavorite(favoriteIdHash: $favoriteIdHash, questionId: $questionId) {\\n    ok\\n    error\\n    favoriteIdHash\\n    questionId\\n    __typename\\n  }\\n}\\n"}' % (favorite_id_hash, question_id)
 
 
 class User:

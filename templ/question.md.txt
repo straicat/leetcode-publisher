@@ -1,8 +1,8 @@
-# {{ question.questionFrontendId }}. {{ question.questionTitle }} | {{ question.translatedTitle }}
+# {{ question.questionFrontendId }}. {{ question.title }} | {{ question.translatedTitle }}
 
 ## Question description
 
-<!--If you want to use the English description, use {{ question.content }} instead-->
+<!--If you want to use the English description, use `question.content` instead-->
 {{ question.translatedContent }}
 
 {% if note -%}
@@ -24,6 +24,6 @@ Language: **{{ solution.language }}**  /  Runtime: {{ solution.runtime }}
 
 ## Related Links
 
-Question: [LeetCode](https://leetcode.com/problems/{{ question.questionTitleSlug }}/description/)  /  [LeetCode中国](https://leetcode-cn.com/problems/{{ question.questionTitleSlug }}/description/)
+Question: [LeetCode](https://leetcode.com/problems/{{ question.titleSlug }}/description/)  /  [LeetCode中国](https://leetcode-cn.com/problems/{{ question.titleSlug }}/description/)
 
-Solution: [LeetCode](https://leetcode.com/articles/{{ question.questionTitleSlug }}/)  /  [LeetCode中国](https://leetcode-cn.com/articles/{{ question.questionTitleSlug }}/)
+Solution: [LeetCode](https://leetcode.com/articles/{{ question.titleSlug }}/)  /  [LeetCode中国](https://leetcode-cn.com/articles/{{ question.titleSlug }}/)
