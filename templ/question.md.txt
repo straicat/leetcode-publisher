@@ -17,7 +17,7 @@
 Language: **{{ solution.language }}**  /  Runtime: {{ solution.runtime }}
 
 ```{{ solution.language }}
-{{ solution.code | replace("\t", "    ") }}
+{{ solution.code | replace("\t", "    ") | trim }}
 ```
 
 {% endfor %}
@@ -25,5 +25,3 @@ Language: **{{ solution.language }}**  /  Runtime: {{ solution.runtime }}
 ## Related Links
 
 Question: [LeetCode](https://leetcode.com/problems/{{ question.titleSlug }}/description/)  /  [LeetCode中国](https://leetcode-cn.com/problems/{{ question.titleSlug }}/description/)
-
-Solution: [LeetCode](https://leetcode.com/articles/{{ question.titleSlug }}/)  /  [LeetCode中国](https://leetcode-cn.com/articles/{{ question.titleSlug }}/)

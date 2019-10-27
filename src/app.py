@@ -146,12 +146,25 @@ class RepoGen:
             with open(ques_file, 'r', encoding='utf-8') as f:
                 self.questions = json.load(f)
         cn_user = UserCN()  # Chinese version comes with translation
+        en_user = UserEN()
+        console('> Fix questionFrontendId')
+        for slug, question in self.questions.items():
+            try:
+                front_id = int(question['questionFrontendId'])
+            except ValueError:
+                pass
+            else:
+                if front_id > 5000:
+                    console(slug)
+                    self.questions[slug]['questionFrontendId'] = en_user.question(slug)['questionFrontendId']
+
         console('> Get questions')
         for slug in self.solutions:
             if slug not in self.questions:
                 console(slug)
                 # if there is no the question in LeetCode China, try to search it in LeetCode main site instead
-                self.questions[slug] = cn_user.question(slug) or UserEN().question(slug)
+                self.questions[slug] = cn_user.question(slug) or en_user.question(slug)
+
         with open(ques_file, 'w', encoding='utf-8') as f:
             json.dump(self.questions, f)
 
@@ -194,7 +207,7 @@ class RepoGen:
         # This determines how to sort the problems
         ques_sort = sorted(
             [(ques['questionFrontendId'], ques['titleSlug']) for ques in self.questions.values()],
-            key=lambda x: int(x[0]))
+            key=lambda x: -int(x[0]))
         # You can customize the template
         tmpl = Template(open(os.path.join(LP_PREFIX, 'templ', 'README.md.txt'), encoding='utf-8').read())
         readme = tmpl.render(questions=[self.questions[slug] for _, slug in ques_sort], likes=self.likes,
@@ -216,7 +229,6 @@ class RepoGen:
             if sys.platform != 'win32':
                 question = question.replace('\r\n', '\n')
             _filename = '%s-%s.md' % (_question['questionFrontendId'], slug)
-            print(_filename)
             with open(os.path.join(LP_PREFIX, 'repo', 'problems', _filename), 'w', encoding='utf-8') as f:
                 f.write(question)
 
@@ -251,9 +263,7 @@ class RepoGen:
             for cmd in cmds:
                 console(cmd)
                 try:
-                    ret = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
-                    if ret:
-                        print(ret)
+                    subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
                 except subprocess.CalledProcessError:
                     console("Get error when run '%s'" % cmd)
                     break

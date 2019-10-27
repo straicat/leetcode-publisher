@@ -10,20 +10,24 @@ from requests.adapters import HTTPAdapter
 # noinspection PyPep8Naming
 class GraphqlAPI:
     @staticmethod
-    def getQuestionDetail(title_slug):
-        return '{"operationName":"questionData","variables":{"titleSlug":"%s"},"query":"query questionData($titleSlug: String!) {\\n  question(titleSlug: $titleSlug) {\\n    questionId\\n    questionFrontendId\\n    boundTopicId\\n    title\\n    titleSlug\\n    content\\n    translatedTitle\\n    translatedContent\\n    isPaidOnly\\n    difficulty\\n    likes\\n    dislikes\\n    isLiked\\n    similarQuestions\\n    contributors {\\n      username\\n      profileUrl\\n      avatarUrl\\n      __typename\\n    }\\n    langToValidPlayground\\n    topicTags {\\n      name\\n      slug\\n      translatedName\\n      __typename\\n    }\\n    companyTagStats\\n    codeSnippets {\\n      lang\\n      langSlug\\n      code\\n      __typename\\n    }\\n    stats\\n    hints\\n    solution {\\n      id\\n      canSeeDetail\\n      __typename\\n    }\\n    status\\n    sampleTestCase\\n    metaData\\n    judgerAvailable\\n    judgeType\\n    mysqlSchemas\\n    enableRunCode\\n    enableTestMode\\n    envInfo\\n    libraryUrl\\n    __typename\\n  }\\n}\\n"}' % title_slug
+    def getQuestionDetail(titleSlug):
+        return '{"operationName":"questionData","variables":{"titleSlug":"%s"},"query":"query questionData($titleSlug: String!) {\\n  question(titleSlug: $titleSlug) {\\n    questionId\\n    questionFrontendId\\n    boundTopicId\\n    title\\n    titleSlug\\n    content\\n    translatedTitle\\n    translatedContent\\n    isPaidOnly\\n    difficulty\\n    likes\\n    dislikes\\n    isLiked\\n    similarQuestions\\n    contributors {\\n      username\\n      profileUrl\\n      avatarUrl\\n      __typename\\n    }\\n    langToValidPlayground\\n    topicTags {\\n      name\\n      slug\\n      translatedName\\n      __typename\\n    }\\n    companyTagStats\\n    codeSnippets {\\n      lang\\n      langSlug\\n      code\\n      __typename\\n    }\\n    stats\\n    hints\\n    solution {\\n      id\\n      canSeeDetail\\n      __typename\\n    }\\n    status\\n    sampleTestCase\\n    metaData\\n    judgerAvailable\\n    judgeType\\n    mysqlSchemas\\n    enableRunCode\\n    enableTestMode\\n    envInfo\\n    libraryUrl\\n    __typename\\n  }\\n}\\n"}' % titleSlug
 
     @staticmethod
-    def getLikesAndFavorites(title_slug):
-        return '{"operationName":"getLikesAndFavorites","variables":{"titleSlug":"%s"},"query":"query getLikesAndFavorites($titleSlug: String!) {\\n  question(titleSlug: $titleSlug) {\\n    questionId\\n    likes\\n    dislikes\\n    isLiked\\n    __typename\\n  }\\n  favoritesLists {\\n    publicFavorites {\\n      ...favoriteFields\\n      __typename\\n    }\\n    privateFavorites {\\n      ...favoriteFields\\n      __typename\\n    }\\n    __typename\\n  }\\n}\\n\\nfragment favoriteFields on FavoriteNode {\\n  idHash\\n  id\\n  name\\n  isPublicFavorite\\n  viewCount\\n  creator\\n  isWatched\\n  questions {\\n    questionId\\n    title\\n    titleSlug\\n    __typename\\n  }\\n  __typename\\n}\\n"}' % title_slug
+    def getLikesAndFavorites(titleSlug):
+        return '{"operationName":"getLikesAndFavorites","variables":{"titleSlug":"%s"},"query":"query getLikesAndFavorites($titleSlug: String!) {\\n  question(titleSlug: $titleSlug) {\\n    questionId\\n    likes\\n    dislikes\\n    isLiked\\n    __typename\\n  }\\n  favoritesLists {\\n    publicFavorites {\\n      ...favoriteFields\\n      __typename\\n    }\\n    privateFavorites {\\n      ...favoriteFields\\n      __typename\\n    }\\n    __typename\\n  }\\n}\\n\\nfragment favoriteFields on FavoriteNode {\\n  idHash\\n  id\\n  name\\n  isPublicFavorite\\n  viewCount\\n  creator\\n  isWatched\\n  questions {\\n    questionId\\n    title\\n    titleSlug\\n    __typename\\n  }\\n  __typename\\n}\\n"}' % titleSlug
 
     @staticmethod
     def fetchAllLeetcodeTemplates():
         return '{"operationName":"fetchAllLeetcodeTemplates","variables":{},"query":"query fetchAllLeetcodeTemplates {\\n  allLeetcodePlaygroundTemplates {\\n    templateId\\n    name\\n    nameSlug\\n    __typename\\n  }\\n}\\n"}'
 
     @staticmethod
-    def addQuestionToFavorite(favorite_id_hash, question_id):
-        return '{"operationName":"addQuestionToFavorite","variables":{"favoriteIdHash":"%s","questionId":"%d"},"query":"mutation addQuestionToFavorite($favoriteIdHash: String!, $questionId: String!) {\\n  addQuestionToFavorite(favoriteIdHash: $favoriteIdHash, questionId: $questionId) {\\n    ok\\n    error\\n    favoriteIdHash\\n    questionId\\n    __typename\\n  }\\n}\\n"}' % (favorite_id_hash, question_id)
+    def addQuestionToFavorite(favoriteIdHash, questionId):
+        return '{"operationName":"addQuestionToFavorite","variables":{"favoriteIdHash":"%s","questionId":"%s"},"query":"mutation addQuestionToFavorite($favoriteIdHash: String!, $questionId: String!) {\\n  addQuestionToFavorite(favoriteIdHash: $favoriteIdHash, questionId: $questionId) {\\n    ok\\n    error\\n    favoriteIdHash\\n    questionId\\n    __typename\\n  }\\n}\\n"}' % (favoriteIdHash, questionId)
+
+    @staticmethod
+    def allQuestions():
+        return '{"operationName":"allQuestions","variables":{},"query":"query allQuestions {\\n  allQuestions {\\n    ...questionSummaryFields\\n    __typename\\n  }\\n}\\n\\nfragment questionSummaryFields on QuestionNode {\\n  title\\n  titleSlug\\n  translatedTitle\\n  questionId\\n  questionFrontendId\\n  status\\n  difficulty\\n  isPaidOnly\\n  categoryTitle\\n  __typename\\n}\\n"}'
 
 
 class User:
@@ -39,13 +43,13 @@ class User:
         self.sess.request = partial(self.sess.request, timeout=(3.05, 27))
         self.set_options()
 
-    def set_options(self, retry_span=3, retry_times=100, long_wait=60, turn_long_wait_cnt=3, shield_print=False):
+    def set_options(self, retry_span=3, retry_times=100, long_wait=60, turn_long_wait_cnt=3, mute_print=False):
         self.__options.update({
             'retry_span': retry_span,
             'retry_times': retry_times,
             'long_wait': long_wait,
             'turn_long_wait_cnt': turn_long_wait_cnt,
-            'shield_print': shield_print,
+            'mute_print': mute_print,
         })
 
     @property
@@ -77,10 +81,10 @@ class User:
                 span_cnt += 1
                 if span_cnt % self.__options['turn_long_wait_cnt'] == 0:
                     for t in range(self.__options['long_wait'], 0, -1):
-                        if not self.__options['shield_print']:
+                        if not self.__options['mute_print']:
                             print('\rError %d, Wait for %d seconds...    ' % (r.status_code, t), end='', flush=True)
                         time.sleep(1)
-                    if not self.__options['shield_print']:
+                    if not self.__options['mute_print']:
                         print()
                 else:
                     time.sleep(self.__options['retry_span'])
