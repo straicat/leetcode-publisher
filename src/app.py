@@ -76,11 +76,13 @@ class RepoGen:
 
     def login(self):
         self.conf['account']['domain'] = self.conf['account'].get('domain', 'en').lower()
-        domain = self.conf['account']['domain']
+        domain = self.conf['account']['domain'].lower()
         if domain == 'cn':
             self.user = UserCN()
         elif domain == 'en':
             self.user = UserEN()
+        else:
+            raise ValueError("Unrecognized domain: '{}'".format(domain))
         return self.user.login(self.conf['account']['user'], self.conf['account']['password'])
 
     def __submissions(self):
@@ -167,6 +169,13 @@ class RepoGen:
 
         with open(ques_file, 'w', encoding='utf-8') as f:
             json.dump(self.questions, f)
+
+    def fetch_notes(self):
+        console('> Get notes')
+        notes = self.user.notes()
+        self.notes = {
+            obj['question']['titleSlug']: obj['content'] for obj in notes
+        }
 
     def prepare_notes(self):
         note_file = os.path.join(LP_PREFIX, '_cache', 'notes.json')

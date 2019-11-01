@@ -129,6 +129,14 @@ class User:
         url = self.domain + '/problems/note/%s/' % question_id
         return self.request('GET', url).json().get('content')
 
+    def notes(self):
+        url = self.domain + '/notes/'
+        html = self.request('GET', url).text
+        notes = re.findall(r"^\s*notes: JSON.parse\('(.*)'\)\s*$", html)[0]
+        for ch in set(re.findall(r'\\u\w{4}', notes)):
+            notes = notes.replace(ch, ch.encode('utf-8').decode('unicode-escape'))
+        return json.loads(notes)
+
     def summary(self):
         url = self.domain + '/api/problems/all/'
         return self.request('GET', url).json()
