@@ -107,7 +107,7 @@ class RepoGen:
         has_next = True
         stop_flag = False
         page = 0
-        while has_next and not stop_flag and page < 5:
+        while has_next and not stop_flag:
             page += 1
             print('\r> Get submission record of page %d      ' % page, end='', flush=True)
             j = self.user.submissions(page)
