@@ -1,10 +1,10 @@
 import glob
-import itertools
 import json
 import logging
 import os
 import re
 import shutil
+import sqlite3
 import subprocess
 import sys
 from collections import defaultdict
@@ -12,6 +12,8 @@ from datetime import datetime
 
 import yaml
 from jinja2 import Template
+
+from dao import Dao
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from leetcode import UserCN, UserEN
@@ -34,11 +36,14 @@ class RepoGen:
         self.all_submissions = []
         self.new_ac_submissions = defaultdict(list)
         self.new_ac_title_slugs = set()
-        self.solutions = {}
+        self.solutions = defaultdict(list)
         self.questions = {}
         self.notes = {}
         self.likes = {}
         self.templates = {'solution': ''}
+        self.summary = None
+        self.dao = Dao(sqlite3.connect(os.path.join(LP_PREFIX, '_cache', 'leetcode.db')))
+        self.dao.prepare()
 
     def main(self):
         self.logger()
@@ -57,7 +62,8 @@ class RepoGen:
                 self.render_readme()
                 self.render_problems()
                 self.copy_source()
-                self.deploy()
+                deploy_ret = self.deploy()
+                self.after_deploy(deploy_ret)
             else:
                 console('> Login failed!')
         except Exception as e:
@@ -88,7 +94,7 @@ class RepoGen:
         else:
             raise ValueError("Unrecognized domain: '{}'".format(domain))
         return self.user.login(self.conf['account']['user'], self.conf['account']['password'])
-    
+
     def prepare_templates(self):
         self.get_solution_template()
 
@@ -99,30 +105,59 @@ class RepoGen:
                 self.templates['solution'] = fp.read()
 
     def __submissions(self):
-        sub_file = os.path.join(LP_PREFIX, '_cache', 'submissions.json')
-        if os.path.exists(sub_file):
-            with open(sub_file, 'r', encoding='utf-8') as f:
-                self.all_submissions = json.load(f)
-        stored_submission_ids = set([sd['id'] for sd in self.all_submissions])
+        for subm in self.dao.get_submissions():
+            self.all_submissions.append({
+                'code': subm[0],
+                'compare_result': subm[1],
+                'id': subm[2],
+                'is_pending': subm[3],
+                'lang': subm[4],
+                'memory': subm[5],
+                'runtime': subm[6],
+                'status_display': subm[7],
+                'timestamp': subm[8],
+                'title': subm[9],
+                'url': subm[10]
+            })
+        self.all_submissions.sort(key=lambda sub: sub['timestamp'], reverse=True)
+        all_submission_ids = [submission['id'] for submission in self.all_submissions]
+
+        pushed_sub = os.path.join(LP_PREFIX, '_cache', 'pushed_submissions.txt')
+        stored_submission_ids = set()
+        if os.path.exists(pushed_sub):
+            with open(pushed_sub, 'r', encoding='utf-8') as f:
+                stored_submission_ids = set(map(int, filter(None, f.read().splitlines(keepends=False))))
         has_next = True
         stop_flag = False
         page = 0
+
         while has_next and not stop_flag:
             page += 1
+            new_submissions = []
             print('\r> Get submission record of page %d      ' % page, end='', flush=True)
             j = self.user.submissions(page)
             has_next = j['has_next']
             for sd in j['submissions_dump']:
+                if sd['id'] in all_submission_ids:
+                    cache_pos = all_submission_ids.index(sd['id'])
+                    if cache_pos >= 0:
+                        for idx in range(cache_pos, len(all_submission_ids)):
+                            submission = self.all_submissions[idx]
+                            if submission['id'] in stored_submission_ids:
+                                break
+                            yield submission
+                        stop_flag = True
+                        break
                 if sd['id'] in stored_submission_ids:
                     stop_flag = True
                     break
-                self.all_submissions.insert(0, sd)
+                new_submissions.append(sd)
                 yield sd
+            new_submissions.sort(key=lambda sub: sub['timestamp'], reverse=True)
+            self.dao.insert_submissions(new_submissions)
+
         print('\r', end='', flush=True)
         console('> Get submission record completed!            ')
-
-        with open(sub_file, 'w', encoding='utf-8') as f:
-            json.dump(self.all_submissions, f)
 
     def prepare_submissions(self):
         for sd in self.__submissions():
@@ -132,7 +167,7 @@ class RepoGen:
                 if sd['lang'] in [sub['lang'] for sub in self.new_ac_submissions[sd['title']]]:
                     continue
             self.new_ac_submissions[sd['title']].append(sd)
-    
+
     def get_pin_solutions(self):
         pin_solutions = dict()
         for slug, note in self.notes.items():
@@ -140,16 +175,56 @@ class RepoGen:
         return pin_solutions
 
     def prepare_solutions(self):
+        self.summary = self.summary or self.user.summary()
+        title_slug_map = dict()
+        for stat in self.summary['stat_status_pairs']:
+            title_slug_map[stat['stat']['question__title']] = stat['stat']['question__title_slug']
+
         solu_file = os.path.join(LP_PREFIX, '_cache', 'solutions.json')
         if os.path.exists(solu_file):
             with open(solu_file, 'r', encoding='utf-8') as f:
                 self.solutions = json.load(f)
         pin_solutions = self.get_pin_solutions()
+
+        submissions = defaultdict(list)
+        for submission in self.all_submissions:
+            if submission['title'] in title_slug_map:
+                submissions[title_slug_map[submission['title']]].append(submission)
+
         console('> Get solutions')
+
+        counter_init, counter = 0, 0
         for title, sublist in self.new_ac_submissions.items():
-            console(title)
             for sub in sublist[::-1]:
-                solu = self.user.solution(sub['id'])
+                solu = None
+                timestamp = None
+                if title_slug_map.get(title):
+                    if title_slug_map[title] in self.solutions:
+                        for solution in self.solutions[title_slug_map[title]]:
+                            if solution['submission_id'] == sub['id']:
+                                solu = solution
+                                solu['id'] = solu['submission_id']
+                                break
+
+                    if sub['title'] in title_slug_map and title_slug_map[sub['title']] in submissions:
+                        for solution in submissions[title_slug_map[title]]:
+                            if solution['id'] == sub['id']:
+                                timestamp = solution['timestamp']
+                                if '.beats' not in self.templates['solution'] and "'beats'" not in self.templates[
+                                    'solution']:
+                                    solu = solution
+                                    solu['submission_id'] = solu['id']
+                                    solu['title_slug'] = title_slug_map[title]
+                                    solu['language'] = solu['lang']
+                                    break
+                if solu is None:
+                    solu = self.user.solution(sub['id'])
+                    solu['id'] = solu['submission_id']
+                    solu['lang'] = solu['language']
+                    counter += 1
+                    solu['timestamp'] = timestamp
+                    console(title)
+
                 slug = solu['title_slug']
                 self.new_ac_title_slugs.add(slug)
                 if slug not in self.solutions:
@@ -159,21 +234,43 @@ class RepoGen:
                         if self.solutions[slug][i]['language'] == solu['language']:
                             if solu['submission_id'] not in pin_solutions.get(slug, []):
                                 self.solutions[slug].pop(i)
-                    self.solutions[slug].insert(0, solu)
+                    if solu['id'] not in [subm.get('id', subm.get('submission_id')) for subm in self.solutions[slug]]:
+                        self.solutions[slug].insert(0, solu)
+
+            if counter - counter_init > 50:
+                with open(solu_file, 'w', encoding='utf-8') as f:
+                    json.dump(self.solutions, f)
+                counter_init = counter
+
         # fetch remain pin solutions
         for slug, solution_ids in pin_solutions.items():
             for solution_id in solution_ids:
-                if solution_id not in self.solutions.get(slug, []):
-                    solution = self.user.solution(solution_id)
-                    self.solutions[slug].append(solution)
+                if solution_id not in self.solutions.get(slug, {}):
+                    if solution_id not in [subm.get('id', subm.get('submission_id')) for subm in self.solutions[slug]]:
+                        solution = self.user.solution(solution_id)
+                        console(solution['title'])
+                        self.solutions[slug].append(solution)
         with open(solu_file, 'w', encoding='utf-8') as f:
             json.dump(self.solutions, f)
 
     def prepare_questions(self):
-        ques_file = os.path.join(LP_PREFIX, '_cache', 'questions.json')
-        if os.path.exists(ques_file):
-            with open(ques_file, 'r', encoding='utf-8') as f:
-                self.questions = json.load(f)
+        for que in self.dao.get_questions():
+            self.questions[que[10]] = {
+                'content': que[0],
+                'difficulty': que[1],
+                'dislikes': que[2],
+                'likes': que[3],
+                'questionFrontendId': que[4],
+                'questionId': que[5],
+                'similarQuestions': que[6],
+                'stats': que[7],
+                'status': que[8],
+                'title': que[9],
+                'titleSlug': que[10],
+                'topicTags': eval(que[11]),
+                'translatedContent': que[12],
+                'translatedTitle': que[13],
+            }
         cn_user = UserCN()  # Chinese version comes with translation
         en_user = UserEN()
         console('> Fix questionFrontendId')
@@ -188,14 +285,18 @@ class RepoGen:
                     self.questions[slug]['questionFrontendId'] = en_user.question(slug)['questionFrontendId']
 
         console('> Get questions')
+        question_buffer = []
         for slug in self.solutions:
             if slug not in self.questions:
                 console(slug)
                 # if there is no the question in LeetCode China, try to search it in LeetCode main site instead
-                self.questions[slug] = cn_user.question(slug) or en_user.question(slug)
+                question_buffer.append(cn_user.question(slug) or en_user.question(slug))
+                self.questions[slug] = question_buffer[-1]
 
-        with open(ques_file, 'w', encoding='utf-8') as f:
-            json.dump(self.questions, f)
+                if len(question_buffer) == 100:
+                    self.dao.insert_questions(question_buffer)
+                    question_buffer = []
+        self.dao.insert_questions(question_buffer)
 
     def fetch_notes(self):
         console('> Get notes')
@@ -239,7 +340,7 @@ class RepoGen:
         os.makedirs(os.path.join(LP_PREFIX, 'repo', 'problems'))
 
     def render_readme(self):
-        summary = self.user.summary()
+        self.summary = self.summary or self.user.summary()
         console('> Render README.md')
         # This determines how to sort the problems
         ques_sort = sorted(
@@ -248,7 +349,7 @@ class RepoGen:
         # You can customize the template
         tmpl = Template(open(os.path.join(LP_PREFIX, 'templ', 'README.md.txt'), encoding='utf-8').read())
         readme = tmpl.render(questions=[self.questions[slug] for _, slug in ques_sort], likes=self.likes,
-                             date=datetime.now(), summary=summary, conf=self.conf)
+                             date=datetime.now(), summary=self.summary, conf=self.conf)
         with open(os.path.join(LP_PREFIX, 'repo', 'README.md'), 'w', encoding='utf-8') as f:
             f.write(readme)
 
@@ -314,7 +415,16 @@ class RepoGen:
                     subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
                 except subprocess.CalledProcessError:
                     console("Get error when run '%s'" % cmd)
-                    break
+                    return False
+        return True
+
+    def after_deploy(self, deploy_ret):
+        if deploy_ret:
+            pushed_sub = os.path.join(LP_PREFIX, '_cache', 'pushed_submissions.txt')
+            with open(pushed_sub, 'w', encoding='utf8') as f:
+                for submission in self.all_submissions:
+                    f.write('%s\n' % submission['id'])
+        self.dao.close()
 
 
 def _main():
@@ -324,6 +434,7 @@ def _main():
             try:
                 with open(conf_file, encoding=ec) as fp:
                     try:
+                        # noinspection PyUnresolvedReferences
                         from yaml import FullLoader
                         conf = yaml.load(fp, Loader=FullLoader)
                     except ImportError:

@@ -119,6 +119,9 @@ class User:
     def solution(self, submission_id):
         url = self.domain + '/submissions/detail/%d/' % submission_id
         html = self.request('GET', url).text
+        title = re.findall(r'<a class="inline-wrap" href="\S+?">(.+?)</a>', html) or None
+        if title:
+            title = title[0]
         runtime = re.findall(r"runtime: '(\d+)',", html) or None
         if runtime:
             runtime = int(runtime[0])
@@ -143,9 +146,10 @@ class User:
                 for dis in runtime_distribution.get('distribution', []):
                     if int(dis[0]) < runtime:
                         beats -= dis[1]
+                beats = round(beats, 2)
 
         return {'runtime': runtime, 'language': language, 'code': code, 'submission_id': submission_id,
-                'memory': memory, 'beats': round(beats, 2), 'title_slug': title_slug}
+                'memory': memory, 'beats': beats, 'title_slug': title_slug, 'title': title}
 
     def note(self, arg):
         if isinstance(arg, int):
