@@ -19,5 +19,5 @@ My LeetCode homepage : [{{ summary.user_name }} - Profile - LeetCode](https://le
 |  #  | Title |  标题  | Difficulty |
 |:---:|:-----:|:-----:|:----------:|
 {% for question in questions -%}
-|{{ question.questionFrontendId }} | [{{ question.title }}](problems/{{ question.questionFrontendId }}-{{ question.titleSlug }}.md) | [{{ question.translatedTitle }}](problems/{{ question.questionFrontendId }}-{{ question.titleSlug }}.md) | ![](img/{{ question.difficulty | lower }}.png) |
+|{{ question.questionFrontendId }} | [{{ question.title }}](problems/{{ question.questionFrontendId }}-{{ question.titleSlug }}.md) | [{% if question.translatedTitle %}{{ question.translatedTitle }}{% else %}{{ question.title }}{% endif %}](problems/{{ question.questionFrontendId }}-{{ question.titleSlug }}.md) | ![](img/{{ question.difficulty | lower }}.png) |
 {% endfor %}

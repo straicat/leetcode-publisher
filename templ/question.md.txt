@@ -1,27 +1,21 @@
-# {{ question.questionFrontendId }}. {{ question.title }} | {{ question.translatedTitle }}
-
-## Question description
+## {{ question.questionFrontendId }}. {{ question.title }} - {{ question.translatedTitle }}
 
 <!--If you want to use the English description, use `question.content` instead-->
+{% if question.translatedContent %}
 {{ question.translatedContent }}
-
-{% if note -%}
-## Note
-
-{{ note | replace("\n", "\n\n") }}
+{% else %}
+{{ question.content }}
 {% endif %}
 
-## Solution
+-----
 
-{% for solution in solutions -%}
-Language: **{{ solution.language }}**  /  Runtime: {{ solution.runtime }}
+题目标签：{% for topicTag in question.topicTags -%}
+{{ topicTag.name }}
+{%- if not loop.last %} / {% endif -%}
+{%- endfor %}
 
-```{{ solution.language }}
-{{ solution.code | replace("\t", "    ") | trim }}
-```
+题目链接：[LeetCode](https://leetcode.com/problems/{{ question.titleSlug }}/description/)  /  [LeetCode中国](https://leetcode-cn.com/problems/{{ question.titleSlug }}/description/)
 
-{% endfor %}
+## 题解
 
-## Related Links
-
-Question: [LeetCode](https://leetcode.com/problems/{{ question.titleSlug }}/description/)  /  [LeetCode中国](https://leetcode-cn.com/problems/{{ question.titleSlug }}/description/)
+{{ answer }}

@@ -29,6 +29,9 @@ class GraphqlAPI:
     def allQuestions():
         return '{"operationName":"allQuestions","variables":{},"query":"query allQuestions {\\n  allQuestions {\\n    ...questionSummaryFields\\n    __typename\\n  }\\n}\\n\\nfragment questionSummaryFields on QuestionNode {\\n  title\\n  titleSlug\\n  translatedTitle\\n  questionId\\n  questionFrontendId\\n  status\\n  difficulty\\n  isPaidOnly\\n  categoryTitle\\n  __typename\\n}\\n"}'
 
+    @staticmethod
+    def QuestionNote(titleSlug):
+        return '{"operationName":"QuestionNote","variables":{"titleSlug":"%s"},"query":"query QuestionNote($titleSlug: String!) {\\n  question(titleSlug: $titleSlug) {\\n    questionId\\n    note\\n    __typename\\n  }\\n}\\n"}' % titleSlug
 
 class User:
     DOMAIN_EN = 'https://leetcode.com'
@@ -116,23 +119,51 @@ class User:
     def solution(self, submission_id):
         url = self.domain + '/submissions/detail/%d/' % submission_id
         html = self.request('GET', url).text
-        runtime = re.findall(r"runtime: '(\d+ ms)',", html)[0]
+        runtime = re.findall(r"runtime: '(\d+)',", html) or None
+        if runtime:
+            runtime = int(runtime[0])
+        memory = re.findall(r"memory: '(\d+(?:\.\d+)* \S*B)'", html) or None
+        if memory:
+            memory = memory[0]
         language = re.findall(r"getLangDisplay: '(\S+?)',", html)[0]
         code = re.findall(r"submissionCode: '(.+?)',\n", html)[0]
         for ch in set(re.findall(r'\\u\w{4}', code)):
             code = code.replace(ch, ch.encode('utf-8').decode('unicode-escape'))
         title_slug = re.findall(r"editCodeUrl: '\S*?/problems/(\S+?)/'", html)[0]
-        return {'runtime': runtime, 'language': language, 'code': code, 'submission_id': submission_id,
-                'title_slug': title_slug}
 
-    def note(self, question_id):
+        runtime_distribution = re.findall(r"runtimeDistributionFormatted: '({.*?})'", html)
+        beats = None
+        if runtime_distribution:
+            runtime_distribution = runtime_distribution[0]
+            for ch in set(re.findall(r'\\u\w{4}', runtime_distribution)):
+                runtime_distribution = runtime_distribution.replace(ch, ch.encode('utf-8').decode('unicode-escape'))
+            runtime_distribution = json.loads(runtime_distribution)
+            if runtime is not None:
+                beats = 100
+                for dis in runtime_distribution.get('distribution', []):
+                    if int(dis[0]) < runtime:
+                        beats -= dis[1]
+
+        return {'runtime': runtime, 'language': language, 'code': code, 'submission_id': submission_id,
+                'memory': memory, 'beats': round(beats, 2), 'title_slug': title_slug}
+
+    def note(self, arg):
+        if isinstance(arg, int):
+            return self.note_rest(arg)
+        else:
+            return self.note_gql(arg)
+
+    def note_gql(self, title_slug):
+        return self.graphql(GraphqlAPI.QuestionNote(title_slug))['data']['question']['note']
+
+    def note_rest(self, question_id):
         url = self.domain + '/problems/note/%s/' % question_id
         return self.request('GET', url).json().get('content')
 
     def notes(self):
         url = self.domain + '/notes/'
         html = self.request('GET', url).text
-        notes = re.findall(r"^\s*notes: JSON.parse\('(.*)'\)\s*$", html)[0]
+        notes = re.findall(r"^\s*notes: JSON\.parse\('(.*)'\)\s*$", html, re.M)[0]
         for ch in set(re.findall(r'\\u\w{4}', notes)):
             notes = notes.replace(ch, ch.encode('utf-8').decode('unicode-escape'))
         return json.loads(notes)

@@ -1,7 +1,9 @@
 import glob
+import itertools
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -36,6 +38,7 @@ class RepoGen:
         self.questions = {}
         self.notes = {}
         self.likes = {}
+        self.templates = {'solution': ''}
 
     def main(self):
         self.logger()
@@ -44,10 +47,11 @@ class RepoGen:
         try:
             if self.login():
                 console('> Login successful!')
+                self.prepare_templates()
+                self.fetch_notes()
                 self.prepare_submissions()
                 self.prepare_solutions()
                 self.prepare_questions()
-                self.prepare_notes()
                 # self.prepare_likes()
                 self.prepare_render()
                 self.render_readme()
@@ -84,6 +88,15 @@ class RepoGen:
         else:
             raise ValueError("Unrecognized domain: '{}'".format(domain))
         return self.user.login(self.conf['account']['user'], self.conf['account']['password'])
+    
+    def prepare_templates(self):
+        self.get_solution_template()
+
+    def get_solution_template(self):
+        solution_txt = os.path.join(LP_PREFIX, 'templ', 'solution.txt')
+        if os.path.isfile(solution_txt):
+            with open(solution_txt, encoding='utf8') as fp:
+                self.templates['solution'] = fp.read()
 
     def __submissions(self):
         sub_file = os.path.join(LP_PREFIX, '_cache', 'submissions.json')
@@ -94,7 +107,7 @@ class RepoGen:
         has_next = True
         stop_flag = False
         page = 0
-        while has_next and not stop_flag:
+        while has_next and not stop_flag and page < 5:
             page += 1
             print('\r> Get submission record of page %d      ' % page, end='', flush=True)
             j = self.user.submissions(page)
@@ -119,12 +132,19 @@ class RepoGen:
                 if sd['lang'] in [sub['lang'] for sub in self.new_ac_submissions[sd['title']]]:
                     continue
             self.new_ac_submissions[sd['title']].append(sd)
+    
+    def get_pin_solutions(self):
+        pin_solutions = dict()
+        for slug, note in self.notes.items():
+            pin_solutions[slug] = list(map(int, re.findall(r'<!--&(\d+)-->', note)))
+        return pin_solutions
 
     def prepare_solutions(self):
         solu_file = os.path.join(LP_PREFIX, '_cache', 'solutions.json')
         if os.path.exists(solu_file):
             with open(solu_file, 'r', encoding='utf-8') as f:
                 self.solutions = json.load(f)
+        pin_solutions = self.get_pin_solutions()
         console('> Get solutions')
         for title, sublist in self.new_ac_submissions.items():
             console(title)
@@ -137,8 +157,15 @@ class RepoGen:
                 else:
                     for i in range(len(self.solutions[slug]) - 1, -1, -1):
                         if self.solutions[slug][i]['language'] == solu['language']:
-                            self.solutions[slug].pop(i)
+                            if solu['submission_id'] not in pin_solutions.get(slug, []):
+                                self.solutions[slug].pop(i)
                     self.solutions[slug].insert(0, solu)
+        # fetch remain pin solutions
+        for slug, solution_ids in pin_solutions.items():
+            for solution_id in solution_ids:
+                if solution_id not in self.solutions.get(slug, []):
+                    solution = self.user.solution(solution_id)
+                    self.solutions[slug].append(solution)
         with open(solu_file, 'w', encoding='utf-8') as f:
             json.dump(self.solutions, f)
 
@@ -178,6 +205,7 @@ class RepoGen:
         }
 
     def prepare_notes(self):
+        """Deprecated. Because of `fetch_notes`"""
         note_file = os.path.join(LP_PREFIX, '_cache', 'notes.json')
         if os.path.exists(note_file):
             with open(note_file, 'r', encoding='utf-8') as f:
@@ -229,17 +257,28 @@ class RepoGen:
         # You can customize the template
         tmpl = Template(
             open(os.path.join(LP_PREFIX, 'templ', 'question.md.txt'), encoding='utf-8').read())
+        pin_solutions = self.get_pin_solutions()
+        # template for single solution
+        solution_templ = Template(self.templates['solution'])
         for slug in self.solutions:
-            _question = self.questions[slug]
-            _note = self.notes[slug]
-            _solutions = self.solutions[slug]
-            question = tmpl.render(question=_question, note=_note, solutions=_solutions,
-                                   date=datetime.now(), conf=self.conf)
+            question = self.questions[slug]
+            note = self.notes.get(slug, "")
+            answer = note.replace('\n', '\n\n')
+            solutions = self.solutions[slug]
+            pins = pin_solutions.get(slug, [])
+            for solution in solutions:
+                submission_id = solution['submission_id']
+                if submission_id in pins:
+                    answer = answer.replace('<!--&%s-->' % submission_id, solution_templ.render(solution=solution))
+                else:
+                    answer += '\n\n%s\n' % solution_templ.render(solution=solution)
+            content = tmpl.render(question=question, note=note, solutions=solutions,
+                                  date=datetime.now(), conf=self.conf, answer=answer)
             if sys.platform != 'win32':
-                question = question.replace('\r\n', '\n')
-            _filename = '%s-%s.md' % (_question['questionFrontendId'], slug)
-            with open(os.path.join(LP_PREFIX, 'repo', 'problems', _filename), 'w', encoding='utf-8') as f:
-                f.write(question)
+                content = content.replace('\r\n', '\n')
+            filename = '%s-%s.md' % (question['questionFrontendId'], slug)
+            with open(os.path.join(LP_PREFIX, 'repo', 'problems', filename), 'w', encoding='utf-8') as f:
+                f.write(content)
 
     @staticmethod
     def copy_source():
@@ -284,7 +323,11 @@ def _main():
         for ec in ('utf-8', 'gb18030', 'gb2312', 'gbk'):
             try:
                 with open(conf_file, encoding=ec) as fp:
-                    conf = yaml.load(fp)
+                    try:
+                        from yaml import FullLoader
+                        conf = yaml.load(fp, Loader=FullLoader)
+                    except ImportError:
+                        conf = yaml.load(fp)
                 break
             except UnicodeDecodeError:
                 continue

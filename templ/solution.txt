@@ -1,0 +1,7 @@
+| ID | Language | Runtime | Memory | Beats |
+|:---:|:---:|:---:|:---:|:---:|
+| {{ solution.submission_id }} | {{ solution.language }}  | {{ solution.runtime | replace("ms", "") }} ms | {{ solution.memory }} | {% if solution.beats %}{{ solution.beats }} %{% endif %} |
+
+```{{ solution.language }}
+{{ solution.code | replace("\t", "    ") | trim }}
+```
