@@ -122,11 +122,14 @@ class RepoGen:
         self.all_submissions.sort(key=lambda sub: sub['timestamp'], reverse=True)
         all_submission_ids = [submission['id'] for submission in self.all_submissions]
 
-        pushed_sub = os.path.join(LP_PREFIX, '_cache', 'pushed_submissions.txt')
-        stored_submission_ids = set()
-        if os.path.exists(pushed_sub):
-            with open(pushed_sub, 'r', encoding='utf-8') as f:
-                stored_submission_ids = set(map(int, filter(None, f.read().splitlines(keepends=False))))
+        submission_offset = None
+        submission_offset_filename = os.path.join(LP_PREFIX, '_cache', 'submission_offset.txt')
+        if os.path.isfile(submission_offset_filename):
+            with open(submission_offset_filename, 'r', encoding='utf8') as f:
+                submission_offset = f.read().strip()
+                if submission_offset:
+                    submission_offset = int(submission_offset)
+
         has_next = True
         stop_flag = False
         page = 0
@@ -143,12 +146,12 @@ class RepoGen:
                     if cache_pos >= 0:
                         for idx in range(cache_pos, len(all_submission_ids)):
                             submission = self.all_submissions[idx]
-                            if submission['id'] in stored_submission_ids:
+                            if submission_offset and submission['id'] <= submission_offset:
                                 break
                             yield submission
                         stop_flag = True
                         break
-                if sd['id'] in stored_submission_ids:
+                if submission_offset and sd['id'] <= submission_offset:
                     stop_flag = True
                     break
                 new_submissions.append(sd)
@@ -210,8 +213,8 @@ class RepoGen:
                         for solution in submissions[title_slug_map[title]]:
                             if solution['id'] == sub['id']:
                                 timestamp = solution['timestamp']
-                                if '.beats' not in self.templates['solution'] and "'beats'" not in self.templates[
-                                    'solution']:
+                                if '.beats' not in self.templates['solution'] and (
+                                        "'beats'" not in self.templates['solution']):
                                     solu = solution
                                     solu['submission_id'] = solu['id']
                                     solu['title_slug'] = title_slug_map[title]
@@ -420,10 +423,9 @@ class RepoGen:
 
     def after_deploy(self, deploy_ret):
         if deploy_ret:
-            pushed_sub = os.path.join(LP_PREFIX, '_cache', 'pushed_submissions.txt')
-            with open(pushed_sub, 'w', encoding='utf8') as f:
-                for submission in self.all_submissions:
-                    f.write('%s\n' % submission['id'])
+            submission_offset_filename = os.path.join(LP_PREFIX, '_cache', 'submission_offset.txt')
+            with open(submission_offset_filename, 'w', encoding='utf8') as f:
+                f.write('%s\n' % max([submission['id'] for submission in self.all_submissions]))
         self.dao.close()
 
 
