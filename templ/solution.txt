@@ -1,6 +1,6 @@
-| ID | Language | Runtime | Memory |
-|:---:|:---:|:---:|:---:|
-| {{ solution.submission_id }} | {{ solution.language }}  | {{ solution.runtime | replace("ms", "") }} ms | {{ solution.memory }} |
+| Language | Runtime | Memory |
+|:---:|:---:|:---:|
+| {{ solution.language }}  | {{ solution.runtime | replace("ms", "") }} ms | {{ solution.memory }} |
 
 ```{{ solution.language }}
 {{ solution.code | replace("\t", "    ") | trim }}

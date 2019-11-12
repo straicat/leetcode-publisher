@@ -10,7 +10,7 @@
 -----
 
 题目标签：{% for topicTag in question.topicTags -%}
-{{ topicTag.name }}
+{% if topicTag.name %}{{ topicTag.name }}{% else %}{{ topicTag }}{% endif %}
 {%- if not loop.last %} / {% endif -%}
 {%- endfor %}
 
